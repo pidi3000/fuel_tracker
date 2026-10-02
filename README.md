@@ -6,74 +6,128 @@ A small self-hosted web server that makes logging fuel-ups into
 ## Purpose
 
 LubeLogger is the system of record for all vehicles and their fuel-ups. Entering
-a fuel-up by hand means typing the odometer, liters, price, fuel type and
+a fuel-up by hand means typing the odometer, amount, price, fuel type and
 location every time, usually while standing at the pump. Most of that
-information already exists elsewhere: the Pace Drive app knows what was paid,
-for how much fuel, and at which station.
+information already exists elsewhere: when paying with the Pace Drive app, a
+receipt with the fuel type, amount, price and station address is emailed
+afterwards.
 
 Fuel Tracker connects these systems. The user only provides what nothing else
-knows (which vehicle and the odometer reading). The server collects the rest,
+knows (vehicle, odometer reading, location). The server collects the rest and
 then creates the fuel record in LubeLogger.
 
 ## Connected systems
 
 | System | Role |
 | --- | --- |
-| **LubeLogger** | Source of the vehicle list; destination for the finished fuel record |
-| **Pace Drive API** | Payment details (amount, fuel type, total price, station address) for fuel-ups paid in the app |
-| **Email inbox** | Dedicated mailbox that receives Pace Drive fuel receipts; used when the API route isn't available |
-| **OCR** | Reads the emailed receipts, using a receipt template that is set up once |
-| **Apple Shortcuts** | Alternative front end that starts a fuel-up from the phone, e.g. right after paying |
+| **LubeLogger** | Source of the vehicle list and last odometer reading; destination for the finished fuel record |
+| **Email inbox** | Dedicated mailbox that receives the Pace Drive receipts (PDF attachment). This is the primary source of payment data |
+| **Pace Drive API** | Possible future source of payment data. Postponed until API access is confirmed |
+| **Notification service** | Tells the user when a fuel-up fails or needs attention (in the web UI first; email or other [Apprise](https://github.com/caronc/apprise) targets later) |
+| **Apple Shortcuts** | A client of the server's API, like the web UI. The server needs nothing Shortcut-specific |
 
 ## What it does
 
-### Web UI
+### Creating a fuel-up
 
-A simple form for creating a fuel-up record:
+Each fuel-up has these fields, entered in the web UI or sent through the API:
 
-- **Vehicle**: selected from the vehicles loaded from LubeLogger
-- **Odometer reading**: required
-- **Full fuel-up**: yes/no, defaults to *yes*
-- **Date and time**: defaults to *now*
-- **Payment info source**: Pace Drive API, Pace Drive email receipt, or manual
+| Field | Notes |
+| --- | --- |
+| Vehicle | Chosen from the vehicles loaded from LubeLogger |
+| Odometer reading | Required. Rejected if it is lower than the vehicle's last reading in LubeLogger |
+| Full fuel-up | Defaults to *yes* |
+| Missed fuel-up | LubeLogger's flag. Defaults to *no* |
+| Date and time | Defaults to *now* |
+| GPS location | Requested from the browser (the server always runs on HTTPS) or sent by the Shortcut |
+| Payment source | **Pace Drive email receipt** or **Manual** (the Pace Drive API is postponed) |
+| Manual payment details | Only for *Manual*: fuel type (from the configured list), fuel amount and total price. The UI shows the configured units next to the inputs |
 
-The same flow is also available to the Apple Shortcut workflow.
+The server responds immediately: either the fuel-up was accepted, or there is
+an error (for example, an invalid odometer reading). That way the Shortcut shows
+right away whether it worked, even though collecting the payment data can take
+a while.
 
-### Fuel-up record creation flow
+### Payment data from the email receipt
 
-1. The user starts a new fuel-up record.
-2. The user enters the odometer reading. Other fields keep their defaults
-   unless changed.
-3. The user chooses where the payment information comes from:
-   1. **Pace Drive API**: the server loads the transaction details from the
-      Pace Drive API.
-   2. **Pace Drive email receipt**:
-      1. The server checks the connected inbox for the receipt.
-      2. If it isn't there yet, the server retries after a while.
-      3. Once it arrives, the server runs OCR on the receipt.
-      4. The relevant values are extracted using the receipt template, which
-         is set up once and defines where each value is on the receipt.
-   3. **Manual**: the user enters:
-      1. **Fuel type**: chosen from a configurable list (defaults: Diesel,
-         Super, Super Plus, Super E10)
-      2. **Fuel amount**: in the configured unit
-      3. **Total price**
-4. When all information is available, the server creates the fuel record in
-   LubeLogger through its API. The Pace Drive and email routes can take a few
-   minutes, so this step runs in the background.
+1. The server waits for a new email in the connected inbox. It is notified by
+   the mail server as soon as a mail arrives instead of checking periodically.
+2. A receipt matches a fuel-up when its date and time is within a configurable
+   window of the fuel-up's time (default: 10 minutes). There is only one user,
+   so no two fuel-ups are expected inside that window.
+3. The receipt is a PDF with real text, so the values can be read directly.
+   No OCR is needed for the current Pace Drive receipts. Extracted values:
+   - Station name and address
+   - Date and time
+   - Fuel type (e.g. *Super*), used as-is: the configured fuel types use the
+     same names as Pace Drive
+   - Quantity and its unit (e.g. *23.00 L*)
+   - Total price and currency (e.g. *54.03 EUR*)
+   - Transaction ID, so the same receipt is never used for two fuel-ups
+4. If the receipt's units differ from the configured units, the fuel-up is
+   paused and the user is notified. Automatic unit conversion may come later.
+5. If no matching receipt arrives within the configurable wait time, the
+   fuel-up is marked **Failed** and the user is notified.
 
-### Location
+### Manual payment data
 
-Each fuel-up stores where it happened:
+The user enters fuel type, fuel amount and total price. Fuel types come from the
+settings, with defaults for Diesel, Super, Super Plus and Super E10. The fuel
+amount and price use the configured units.
 
-- **Manual entry**: the device's GPS location at the time of entry
-- **Pace Drive (API or receipt)**: the station address provided by Pace Drive
+### Writing to LubeLogger
 
-## Configuration (overview)
+When all data is available, the server creates the fuel record in LubeLogger:
 
-- LubeLogger connection
-- Pace Drive API access
-- Email inbox access for receipts
-- Receipt OCR template
-- Fuel types (with defaults)
-- Units (fuel volume, currency)
+| LubeLogger field | Value |
+| --- | --- |
+| Date, odometer, fuel amount, cost | From the fuel-up and its payment data |
+| Is fill to full, missed fuel-up | From the fuel-up |
+| Notes | Fuel type |
+| Extra field: GPS location | Raw GPS coordinates |
+| Extra field: address | Station name and address from the receipt (empty for manual entries) |
+
+A setting decides whether records are written right away or held for review
+first. During testing, the user checks and corrects each fuel-up in the web UI
+before it is sent. Later, records are written automatically.
+
+### Fuel-up overview
+
+The web UI lists all fuel-ups with their status:
+
+| Status | Meaning |
+| --- | --- |
+| **Pending** | Waiting for the receipt |
+| **Needs attention** | Waiting for review, or paused because of a unit mismatch |
+| **Done** | Created in LubeLogger |
+| **Failed** | No receipt arrived in time, or LubeLogger rejected the record |
+
+For a failed fuel-up, the user can retry the receipt search or enter the payment
+data manually. Notifications are only sent when something fails or needs
+attention, never on success.
+
+### Users and access
+
+The server supports multiple user accounts with permissions. It is only
+reachable through a VPN and sits behind a reverse proxy, but it still handles
+login itself. The Shortcut uses the same API with its own credentials.
+
+## Settings (overview)
+
+- LubeLogger connection, including the names of the two extra fields
+- Email inbox access
+- Matching window between fuel-up and receipt (default 10 minutes)
+- How long to wait for a receipt before failing
+- Review before sending to LubeLogger: on/off
+- Fuel types (defaults: Diesel, Super, Super Plus, Super E10)
+- Units for fuel amount and currency (default: liters and EUR, matching
+  LubeLogger)
+- Notification targets
+- Users and permissions
+
+## Later
+
+- Pace Drive API as a payment source
+- Automatic unit conversion
+- Converting between GPS coordinates and postal addresses
+- Notifications by email or other Apprise targets
