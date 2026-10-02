@@ -62,7 +62,11 @@ LubeLogger, or until it fails.
      Oeynhausen*)
    - Date and time. This is plain text on the receipt (e.g.
      *9/23/2026, 5:08 PM*), read using the configured Pace Drive date format
-     and time zone
+     and time zone. If the printed date can't be read, the server falls back
+     to the PDF's creation time (stored in the file's metadata, normally the
+     same minute as the payment). When this backup is used, the fuel-up is
+     still processed, but the user is notified and the fuel-up is marked
+     with a warning in the overview
    - Fuel type (e.g. *Super*), used as-is: the configured fuel types use the
      same names as Pace Drive
    - Quantity and its unit (e.g. *23.00 L*)
