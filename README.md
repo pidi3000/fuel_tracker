@@ -73,7 +73,9 @@ LubeLogger, or until it fails.
      same names as Pace Drive
    - Quantity and its unit (e.g. *23.00 L*)
    - Total price and currency (e.g. *54.03 EUR*)
-   - Transaction ID, so the same receipt is never used for two fuel-ups
+   - Transaction ID, so the same receipt is never used for two fuel-ups. It
+     is written to the LubeLogger notes, so this check still works after
+     Fuel Tracker has deleted its own copy of the fuel-up
 4. If the receipt's units differ from the configured units, or a value can't
    be found on the receipt (for example, because Pace changed the layout), the
    fuel-up is set to **Needs attention** and the user is notified. Nothing is
@@ -109,7 +111,7 @@ When all data is available, the server creates the fuel record in LubeLogger:
 | --- | --- |
 | Date, odometer, fuel amount, cost | From the fuel-up and its payment data |
 | Is fill to full, missed fuel-up | From the fuel-up |
-| Notes | Fuel type and payment source, one per line (e.g. *Fuel type: Super* / *Payment: Pace Drive email receipt*, or *Payment: Manual*) |
+| Notes | Fuel type, payment source and, for receipts, the transaction ID, one per line (e.g. *Fuel type: Super* / *Payment: Pace Drive email receipt* / *Transaction ID: b595859d-…*; manual entries have *Payment: Manual* and no transaction ID) |
 | Extra field *GPS Location* | Raw GPS coordinates (e.g. *52.2063,8.8024*) |
 | Extra field *Address* | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
 | Attachment | The receipt PDF (receipt fuel-ups only) |
@@ -120,13 +122,24 @@ before it is sent. Later, records are written automatically.
 
 ### Fuel-up overview
 
-The web UI lists all fuel-ups with their status:
+LubeLogger is the only long-term store for fuel-ups. Fuel Tracker keeps a
+fuel-up only while it is in progress, and deletes its copy once the record is
+in LubeLogger. A short, configurable grace period (default: 7 days) keeps
+finished fuel-ups visible with their details, which helps when checking that
+everything worked.
+
+The web UI shows two lists:
+
+- **In progress**: fuel-ups stored in Fuel Tracker, with their status
+- **History**: past fuel records loaded live from LubeLogger, for the vehicles
+  the user has access to. This includes records entered directly in
+  LubeLogger
 
 | Status | Meaning |
 | --- | --- |
 | **Pending** | Waiting for the receipt |
 | **Needs attention** | Waiting for review, paused because of a unit mismatch, or a receipt value couldn't be read |
-| **Done** | Created in LubeLogger |
+| **Done** | Created in LubeLogger. Removed from Fuel Tracker after the grace period |
 | **Failed** | No receipt arrived in time, or LubeLogger rejected the record or stayed unreachable after several retries |
 
 Until a fuel-up is sent to LubeLogger (status Pending, Needs attention or
@@ -179,6 +192,7 @@ vehicles it should log fuel-ups for.
 - Pace Drive receipt date format (default: the English app format, e.g.
   *9/23/2026, 5:08 PM*)
 - Review before sending to LubeLogger: on/off
+- How long finished fuel-ups stay in Fuel Tracker (default 7 days)
 - Fuel types (defaults: Diesel, Super, Super Plus, Super E10)
 - Units for fuel amount and currency (default: liters and EUR, matching
   LubeLogger)
