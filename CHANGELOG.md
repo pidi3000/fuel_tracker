@@ -3,7 +3,24 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
-## Unreleased
+## 0.1.0 - 2026-10-03
+
+### Breaking changes / upgrade notes
+
+This is the first version. To set it up:
+
+- Set `LUBELOGGER_URL` (and `LUBELOGGER_API_KEY` if LubeLogger requires login)
+  in `.env`.
+- In LubeLogger, create two extra fields for fuel records (*Settings*, *Manage
+  Extra Fields*, type *Fuel*): `GPS Location` (type *Location*) and `Address`
+  (type *Text*). Fuel Tracker writes the location and the station address
+  there. The *Connections* box on the settings page tells you if they are
+  missing.
+- To use email receipts, set `IMAP_HOST`, `IMAP_USER` and `IMAP_PASSWORD` for
+  the mailbox that receives the Pace Drive receipts. Processed receipts are
+  moved to a folder called `Processed` (created if missing); set
+  `IMAP_PROCESSED_FOLDER` to change it.
+- Open the app once: the setup page creates the admin account.
 
 ### Breaking changes / upgrade notes
 
