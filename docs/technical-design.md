@@ -296,10 +296,15 @@ The backend reads `VERSION` at start-up and returns it from `GET /api/version`;
 the web UI shows it in the footer. Images built from `main` show the version
 with the commit, e.g. `1.2.3-test+a1b2c3d`.
 
+**Between releases**, every pull request with a change the user would notice
+adds a line to an `## Unreleased` section at the top of `CHANGELOG.md`, in the
+same pull request as the change. Internal changes (refactoring, tests, CI) are
+left out; they are visible through the *Full changelog* link.
+
 **Releasing** needs no manual tag or release:
 
-1. A pull request raises the number in `VERSION` and adds the matching section
-   to `CHANGELOG.md`.
+1. A release pull request raises the number in `VERSION` and renames
+   `## Unreleased` to `## <version> - <date>`.
 2. The pull request is merged into `main`.
 3. GitHub Actions notices that no tag `v<VERSION>` exists yet, runs the tests,
    creates the tag and the GitHub release and publishes the images. The
