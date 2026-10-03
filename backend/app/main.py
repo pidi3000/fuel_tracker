@@ -139,7 +139,7 @@ def create_app(
                 await notify_lonely_receipts(session, services.receipts)
                 await session.commit()
 
-        last_cleanup = [0.0]
+        last_cleanup = [float("-inf")]  # monotonic time of the last run; none yet
 
         async def clean() -> None:
             # Housekeeping isn't urgent: at most every 5 minutes
