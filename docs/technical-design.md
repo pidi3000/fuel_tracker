@@ -186,6 +186,12 @@ If the date can't be parsed, the PDF's creation date (metadata, includes time
 zone) is used and the fuel-up gets a warning. If any other value is missing,
 the fuel-up goes to Needs attention.
 
+Details: spaces in the date are normalized (newer browsers print a narrow
+no-break space before AM/PM), numbers may use a decimal point or comma, and
+unit and currency are compared with the configured ones (`L` equals `liter`).
+If quantity times price per unit doesn't match the total by more than 0.05, the
+receipt gets a warning (a discount line can cause that), but is still used.
+
 The parser lives in its own module with tests built from real example receipts,
 so a Pace layout change shows up as a failing test once a new example is added.
 

@@ -1,0 +1,12 @@
+{
+  "station": "TESTOIL",
+  "address": "TESTOIL, Musterstraße 12, 12345 Musterstadt",
+  "printed_date": "9/23/2026, 5:08 PM",
+  "paid_at": "2026-09-23T17:08+02:00",
+  "fuel_type": "Super",
+  "quantity": "23.00",
+  "unit": "L",
+  "total": "41.15",
+  "currency": "EUR",
+  "transaction_id": "00000000-1111-4222-8333-444444444444"
+}

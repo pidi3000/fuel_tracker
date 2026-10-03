@@ -1,0 +1,12 @@
+{
+  "station": "Beispiel Tankstelle",
+  "address": "Beispiel Tankstelle, Beispielweg 3a, 54321 Beispielhausen",
+  "printed_date": "1/5/2027, 7:45 AM",
+  "paid_at": "2027-01-05T07:45+01:00",
+  "fuel_type": "Diesel",
+  "quantity": "48.37",
+  "unit": "L",
+  "total": "80.25",
+  "currency": "EUR",
+  "transaction_id": "12345678-90ab-4cde-8f01-23456789abcd"
+}
