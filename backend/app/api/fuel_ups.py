@@ -255,9 +255,8 @@ async def update_fuel_up(
             if field in changes and changes[field] is None:
                 del changes[field]
         await service.update(session, services.context, user, fuel_up, changes)
-        if "fuel_up_time" in changes:
-            # A receipt that fits the new time may already be here
-            await receipt_service.try_match_fuel_up(session, services.receipts, fuel_up)
+        # A receipt that fits the (new) time may already be here
+        await receipt_service.try_match_fuel_up(session, services.receipts, fuel_up)
     except FuelUpError as exc:
         await session.rollback()
         raise http_error(exc) from exc

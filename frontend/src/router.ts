@@ -39,6 +39,24 @@ export const router = createRouter({
       meta: { title: 'Fuel-ups' },
     },
     {
+      path: '/fuel-ups/:id',
+      name: 'fuel-up',
+      component: () => import('./views/FuelUpView.vue'),
+      meta: { title: 'Fuel-up' },
+    },
+    {
+      path: '/receipts/:id',
+      name: 'receipt',
+      component: () => import('./views/ReceiptView.vue'),
+      meta: { title: 'Receipt' },
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: () => import('./views/NotificationsView.vue'),
+      meta: { title: 'Notifications' },
+    },
+    {
       path: '/account',
       name: 'account',
       component: () => import('./views/AccountView.vue'),
