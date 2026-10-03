@@ -117,3 +117,46 @@ export interface AppNotification {
   is_read: boolean
   created_at: string
 }
+
+export interface Setting {
+  key: string
+  label: string
+  description: string
+  kind: 'int' | 'bool' | 'text' | 'list'
+  minimum: number | null
+  maximum: number | null
+  value: number | boolean | string | string[]
+  default: number | boolean | string | string[]
+  overridden: boolean
+}
+
+export interface EnvironmentInfo {
+  version: string
+  lubelogger_url: string
+  lubelogger_api_key_set: boolean
+  lubelogger_field_gps: string
+  lubelogger_field_address: string
+  imap_host: string
+  imap_port: number
+  imap_user: string
+  imap_inbox: string
+  imap_processed_folder: string
+  receipt_sender: string
+  receipt_subject_pattern: string
+  session_days: number
+}
+
+export interface SettingsResponse {
+  settings: Setting[]
+  environment: EnvironmentInfo
+}
+
+export interface ConnectionStatus {
+  state: 'ok' | 'error' | 'not_configured' | 'connecting'
+  message: string
+}
+
+export interface StatusResponse {
+  lubelogger: ConnectionStatus
+  mailbox: ConnectionStatus
+}

@@ -8,6 +8,7 @@ from app.api import (
     notifications,
     receipts,
     reference,
+    settings,
     system,
     users,
 )
@@ -22,3 +23,4 @@ api_router.include_router(notifications.router)
 api_router.include_router(receipts.router)
 api_router.include_router(events.router)
 api_router.include_router(history.router)
+api_router.include_router(settings.router)

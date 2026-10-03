@@ -57,6 +57,18 @@ export const router = createRouter({
       meta: { title: 'Notifications' },
     },
     {
+      path: '/admin/users',
+      name: 'users',
+      component: () => import('./views/UsersView.vue'),
+      meta: { admin: true, title: 'Users' },
+    },
+    {
+      path: '/admin/settings',
+      name: 'settings',
+      component: () => import('./views/SettingsView.vue'),
+      meta: { admin: true, title: 'Settings' },
+    },
+    {
       path: '/account',
       name: 'account',
       component: () => import('./views/AccountView.vue'),

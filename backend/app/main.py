@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,6 +20,7 @@ from app.core.config import Settings, get_settings
 from app.core.database import create_engine, run_migrations
 from app.core.version import get_version
 from app.services.auth import AuthError
+from app.services.cleanup import clean_up
 from app.services.container import Services
 from app.services.events import EventBus
 from app.services.fuel_ups import Context
@@ -137,7 +139,19 @@ def create_app(
                 await notify_lonely_receipts(session, services.receipts)
                 await session.commit()
 
+        last_cleanup = [float("-inf")]  # monotonic time of the last run; none yet
+
+        async def clean() -> None:
+            # Housekeeping isn't urgent: at most every 5 minutes
+            if time.monotonic() - last_cleanup[0] < 300:
+                return
+            last_cleanup[0] = time.monotonic()
+            async with sessionmaker() as session:
+                await clean_up(session, runtime, events, settings.data_dir / "receipts")
+                await session.commit()
+
         processor.periodic_jobs.append(match_and_expire)
+        processor.periodic_jobs.append(clean)
 
         tasks: list[asyncio.Task] = []
         if settings.background_workers:
