@@ -130,7 +130,7 @@ credentials.
 ## LubeLogger setup
 
 Before using Fuel Tracker, create these extra fields for **fuel records** in
-LubeLogger (*Settings → Extra Fields*, record type *Gas Records*):
+LubeLogger (*Settings → Manage Extra Fields*, record type *Fuel*):
 
 | Name | Type | Required | Content |
 | --- | --- | --- | --- |
