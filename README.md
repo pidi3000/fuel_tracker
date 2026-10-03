@@ -169,6 +169,42 @@ The server is only reachable through a VPN and sits behind a reverse proxy, but
 it still handles login itself. The Shortcut uses the same API with its own
 credentials.
 
+## Running with Docker
+
+The image is published to the GitHub Container Registry as
+`ghcr.io/pidi3000/fuel_tracker`. Because the repository is private, log in first
+with a GitHub personal access token that has the `read:packages` scope:
+
+```sh
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+1. Download [`docker-compose.yml`](docker-compose.yml) and
+   [`.env.example`](.env.example) into an empty folder and rename the second
+   file to `.env`.
+2. Edit `.env`: at least set `LUBELOGGER_URL` (and `LUBELOGGER_API_KEY` if
+   LubeLogger requires login), and the `IMAP_*` settings if you want email
+   receipts. Leave `IMAP_HOST` empty to use manual fuel-ups only. Before the
+   first fuel-up, do the [LubeLogger setup](#lubelogger-setup) below.
+3. Start it:
+
+   ```sh
+   docker compose up -d
+   ```
+
+4. Open `http://<server>:8000` and create the first admin account on the setup
+   page. Everything else (settings, users, vehicle access) is managed in the
+   web UI.
+
+The database and downloaded receipts live in the `fuel-tracker-data` volume
+(`/data`), so they survive updates. To update, run
+`docker compose pull && docker compose up -d`; database migrations run
+automatically on start. Pin a version by replacing `latest` in the compose file
+with a tag such as `0.1.0`. Put the app behind an HTTPS reverse proxy: the
+browser only provides GPS location on HTTPS. Set `FORWARDED_ALLOW_IPS` to the
+proxy's address. See the [technical design](docs/technical-design.md#settings)
+for all settings.
+
 ## LubeLogger setup
 
 Before using Fuel Tracker, create these extra fields for **fuel records** in
