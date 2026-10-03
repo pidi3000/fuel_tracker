@@ -85,25 +85,39 @@ been uploaded to LubeLogger, and are deleted with the fuel-up.
 
 ## Fuel-up lifecycle
 
-```
-           create (API)
-               │
-               ▼
- manual ── payment data complete? ── receipt ──► PENDING ──(no receipt after wait time)──► FAILED
-               │                                   │                                       │
-               │                          receipt matched & parsed                retry / enter manually
-               │                                   │                                       │
-               ▼                                   ▼                                       │
-        review setting on? ──── yes ────► NEEDS_ATTENTION ◄── unit mismatch, unreadable ◄──┘
-               │ no                                │  user checks / edits / approves
-               ▼                                   ▼
-         SENDING ─────────────────────────────► SENDING ──(LubeLogger error after retries)──► FAILED
-               │
-               ▼
-             DONE ──(after grace period)──► deleted
+```mermaid
+stateDiagram-v2
+    state "Pending" as Pending
+    state "Needs attention" as NeedsAttention
+    state "Sending" as Sending
+    state "Done" as Done
+    state "Failed" as Failed
+    state review <<choice>>
+
+    [*] --> Pending: created, payment by email receipt
+    [*] --> review: created, manual payment data
+
+    Pending --> review: receipt matched and read
+    Pending --> NeedsAttention: unit mismatch or unreadable value
+    Pending --> Failed: no receipt within wait time
+
+    review --> NeedsAttention: review before sending on
+    review --> Sending: review before sending off
+
+    NeedsAttention --> Sending: user checks, edits and approves
+
+    Sending --> Done: record created in LubeLogger
+    Sending --> Failed: LubeLogger rejects, or unreachable after retries
+
+    Failed --> Pending: retry receipt search
+    Failed --> review: payment data entered manually
+    Failed --> Sending: retry sending
+
+    Done --> [*]: deleted after grace period
 ```
 
-`SENDING` is an internal state; the UI shows it as Pending.
+*Sending* is an internal state; the UI shows it as Pending. A fuel-up can be
+edited in every state except Sending and Done.
 
 Sending to LubeLogger, in order:
 
