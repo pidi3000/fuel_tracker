@@ -8,7 +8,9 @@ from app.core.config import Settings
 from app.services.events import EventBus
 from app.services.fuel_ups import Context
 from app.services.lubelogger import LubeLoggerClient
+from app.services.mail import MailWatcher
 from app.services.processor import Processor
+from app.services.receipts import ReceiptContext
 from app.services.runtime_settings import RuntimeSettings
 from app.services.vehicles import VehicleDirectory
 
@@ -22,6 +24,8 @@ class Services:
     lubelogger: LubeLoggerClient | None
     vehicles: VehicleDirectory
     processor: Processor
+    receipts: ReceiptContext
+    mail_watcher: MailWatcher | None = None
 
     @property
     def context(self) -> Context:

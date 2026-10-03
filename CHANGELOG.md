@@ -21,9 +21,26 @@ details are linked from each release on GitHub.
 - Optional review step: with `REVIEW_BEFORE_SEND=true` (the default), every
   fuel-up waits for your approval before it is sent to LubeLogger.
 - Errors (for example a rejected record) are shown in the app.
+- Pace Drive receipts by email: choose *Pace Drive email receipt* as the
+  payment source and the fuel type, amount, price and station address are read
+  from the receipt PDF that Pace Drive emails to the receipt mailbox. The
+  receipt is matched to the fuel-up by its time (10 minutes by default) and
+  attached to the fuel record in LubeLogger. The mailbox is watched live (IMAP
+  IDLE).
+- A fuel-up that has waited 60 minutes for its receipt fails and you are told;
+  you can retry the search or enter the payment data by hand.
+- Receipts without a fuel-up are kept in a list, where you can complete or
+  ignore them. A receipt is never used twice (its transaction ID is saved in
+  the LubeLogger notes).
+- Receipts in another unit or currency than LubeLogger's, or with values that
+  can't be read, wait for your attention instead of being sent.
 
 ### Breaking changes / upgrade notes
 
+- To use email receipts, set `IMAP_HOST`, `IMAP_USER` and `IMAP_PASSWORD` for
+  the mailbox that receives the Pace Drive receipts. Processed receipts are
+  moved to a folder called `Processed` (created if missing); set
+  `IMAP_PROCESSED_FOLDER` to change it.
 - Set `LUBELOGGER_URL` (and `LUBELOGGER_API_KEY` if LubeLogger requires login)
   in `.env`.
 - In LubeLogger, create two extra fields for fuel records (*Settings*, *Manage

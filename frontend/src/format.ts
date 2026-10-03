@@ -27,3 +27,8 @@ export function toLocalInput(date: Date): string {
 export function fromLocalInput(value: string): string {
   return new Date(value).toISOString()
 }
+
+export function formatTime(value: string | null): string {
+  if (!value) return '–'
+  return new Date(value).toLocaleTimeString(undefined, { timeStyle: 'short' })
+}

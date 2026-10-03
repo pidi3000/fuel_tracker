@@ -47,32 +47,49 @@ class ConnectionStatus(BaseModel):
 
 class StatusOut(BaseModel):
     lubelogger: ConnectionStatus
+    mailbox: ConnectionStatus
+
+
+def _mailbox_status(services: ServicesDep) -> ConnectionStatus:
+    if not services.settings.imap_configured:
+        return ConnectionStatus(
+            state="not_configured", message="IMAP_HOST and IMAP_USER are not set."
+        )
+    watcher = services.mail_watcher
+    if watcher is None:
+        return ConnectionStatus(state="error", message="The mailbox isn't being watched.")
+    state = watcher.status
+    if state.state == "ok":
+        return ConnectionStatus(state="ok")
+    if state.state == "connecting":
+        return ConnectionStatus(state="connecting", message="Connecting to the mailbox…")
+    return ConnectionStatus(state="error", message=state.message or "Not connected.")
 
 
 @router.get("/status")
 async def connection_status(_: AdminUser, services: ServicesDep) -> StatusOut:
     """Whether the connected systems work. Slower than /health, for the admin UI."""
+    return StatusOut(
+        lubelogger=await _lubelogger_status(services), mailbox=_mailbox_status(services)
+    )
+
+
+async def _lubelogger_status(services: ServicesDep) -> ConnectionStatus:
     client = services.lubelogger
     if client is None:
-        return StatusOut(
-            lubelogger=ConnectionStatus(
-                state="not_configured", message="LUBELOGGER_URL is not set."
-            )
-        )
+        return ConnectionStatus(state="not_configured", message="LUBELOGGER_URL is not set.")
     try:
         await client.check()
         defined = await client.extra_field_names()
     except LubeLoggerError as exc:
-        return StatusOut(lubelogger=ConnectionStatus(state="error", message=str(exc)))
+        return ConnectionStatus(state="error", message=str(exc))
     wanted = {services.settings.lubelogger_field_gps, services.settings.lubelogger_field_address}
     if missing := sorted(wanted - defined):
-        return StatusOut(
-            lubelogger=ConnectionStatus(
-                state="error",
-                message=(
-                    "Create these extra fields for fuel records in LubeLogger "
-                    f"(Settings, Manage Extra Fields): {', '.join(missing)}."
-                ),
-            )
+        return ConnectionStatus(
+            state="error",
+            message=(
+                "Create these extra fields for fuel records in LubeLogger "
+                f"(Settings, Manage Extra Fields): {', '.join(missing)}."
+            ),
         )
-    return StatusOut(lubelogger=ConnectionStatus(state="ok"))
+    return ConnectionStatus(state="ok")

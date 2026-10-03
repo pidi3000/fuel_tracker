@@ -67,6 +67,12 @@ class FuelUp(Base):
     send_attempts: Mapped[int] = mapped_column(Integer, default=0)
     next_attempt_at: Mapped[datetime | None] = mapped_column(UTCDateTime, index=True)
     lubelogger_record_id: Mapped[int | None] = mapped_column(Integer)
+    # The receipt PDF once it is uploaded to LubeLogger ({"name": ..., "location": ...}), so a
+    # second try doesn't upload it again
+    lubelogger_file: Mapped[dict | None] = mapped_column(JSON)
+    receipt_id: Mapped[int | None] = mapped_column(
+        ForeignKey("receipts.id", ondelete="SET NULL"), index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)

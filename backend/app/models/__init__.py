@@ -8,6 +8,7 @@ from app.models.fuel_up import (
     SettingOverride,
     Status,
 )
+from app.models.receipt import Receipt, ReceiptState
 from app.models.user import ApiToken, Role, User, UserSession, UserVehicle
 
 __all__ = [
@@ -16,6 +17,8 @@ __all__ = [
     "FuelUp",
     "Notification",
     "PaymentSource",
+    "Receipt",
+    "ReceiptState",
     "Role",
     "SettingOverride",
     "Status",

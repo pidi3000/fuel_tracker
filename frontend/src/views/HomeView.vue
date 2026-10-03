@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 
 import { getJson } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
-import { formatDateTime, formatMoney, formatNumber } from '../format'
+import { formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
 import type { FuelUp } from '../types'
 
 const fuelUps = ref<FuelUp[]>([])
@@ -52,6 +52,11 @@ onMounted(load)
             {{ fuelUp.fuel_type ?? '–' }} · {{ formatNumber(fuelUp.quantity) }}
             {{ fuelUp.volume_unit }} ·
             {{ formatMoney(fuelUp.total_price, fuelUp.currency) }}
+          </div>
+          <div v-if="fuelUp.waiting_for_receipt" class="small muted">
+            Waiting for the receipt email<template v-if="fuelUp.receipt_deadline">
+              (until {{ formatTime(fuelUp.receipt_deadline) }})</template
+            >.
           </div>
           <div v-if="fuelUp.error_message" class="small" style="color: var(--danger)">
             {{ fuelUp.error_message }}

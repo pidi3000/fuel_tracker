@@ -178,7 +178,7 @@ def advance_when_complete(ctx: Context, fuel_up: FuelUp) -> None:
         start_sending(ctx, fuel_up)
 
 
-async def create_manual(
+async def _create(
     session: AsyncSession,
     ctx: Context,
     user: User,
@@ -190,12 +190,14 @@ async def create_manual(
     missed_fuel_up: bool,
     latitude: float | None,
     longitude: float | None,
-    fuel_type: str | None,
-    quantity: Decimal | None,
-    total_price: Decimal | None,
+    payment_source: PaymentSource,
+    fuel_type: str | None = None,
+    quantity: Decimal | None = None,
+    total_price: Decimal | None = None,
 ) -> FuelUp:
     vehicle = await vehicle_for(ctx, user, vehicle_id)
-    clean_payment(ctx, fuel_type, quantity, total_price)
+    if payment_source == PaymentSource.MANUAL:
+        clean_payment(ctx, fuel_type, quantity, total_price)
     warnings = await check_odometer(session, ctx, vehicle_id, odometer)
 
     fuel_up = FuelUp(
@@ -209,7 +211,7 @@ async def create_manual(
         missed_fuel_up=missed_fuel_up,
         latitude=latitude,
         longitude=longitude,
-        payment_source=PaymentSource.MANUAL,
+        payment_source=payment_source,
         fuel_type=fuel_type,
         quantity=quantity,
         total_price=total_price,
@@ -217,8 +219,35 @@ async def create_manual(
     )
     session.add(fuel_up)
     await session.flush()
+    return fuel_up
+
+
+async def create_manual(session: AsyncSession, ctx: Context, user: User, **fields) -> FuelUp:
+    """A fuel-up with payment data entered by hand: held for review or sent."""
+    fuel_up = await _create(session, ctx, user, payment_source=PaymentSource.MANUAL, **fields)
     advance_when_complete(ctx, fuel_up)
     return fuel_up
+
+
+async def create_waiting_for_receipt(
+    session: AsyncSession, ctx: Context, user: User, **fields
+) -> FuelUp:
+    """A fuel-up whose payment data comes from the email receipt, which is awaited."""
+    fuel_up = await _create(
+        session, ctx, user, payment_source=PaymentSource.EMAIL_RECEIPT, **fields
+    )
+    wait_for_receipt(ctx, fuel_up)
+    return fuel_up
+
+
+def wait_for_receipt(ctx: Context, fuel_up: FuelUp) -> None:
+    fuel_up.status = Status.PENDING
+    fuel_up.attention = None
+    fuel_up.attention_message = None
+    fuel_up.error_message = None
+    fuel_up.next_attempt_at = None
+    fuel_up.pending_since = utcnow()
+    touch(ctx, fuel_up)
 
 
 async def get_visible(session: AsyncSession, user: User, fuel_up_id: int) -> FuelUp:
@@ -289,9 +318,12 @@ def approve(ctx: Context, fuel_up: FuelUp) -> FuelUp:
 
 
 def retry(ctx: Context, fuel_up: FuelUp) -> FuelUp:
-    """Try a failed fuel-up again: a manual one is sent again."""
+    """Try a failed fuel-up again: look for the receipt again, or send it again."""
     if fuel_up.status != Status.FAILED:
         raise FuelUpError(409, "Only failed fuel-ups can be retried.")
+    if fuel_up.payment_source == PaymentSource.EMAIL_RECEIPT and fuel_up.receipt_id is None:
+        wait_for_receipt(ctx, fuel_up)
+        return fuel_up
     check_fuel_up_payment(ctx, fuel_up)
     start_sending(ctx, fuel_up)
     return fuel_up
