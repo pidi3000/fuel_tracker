@@ -86,38 +86,47 @@ been uploaded to LubeLogger, and are deleted with the fuel-up.
 ## Fuel-up lifecycle
 
 ```mermaid
-stateDiagram-v2
-    state "Pending" as Pending
-    state "Needs attention" as NeedsAttention
-    state "Sending" as Sending
-    state "Done" as Done
-    state "Failed" as Failed
-    state review <<choice>>
+flowchart TD
+    start(["User creates a fuel-up"]) --> source{"Payment source?"}
 
-    [*] --> Pending: created, payment by email receipt
-    [*] --> review: created, manual payment data
+    source -- "Email receipt" --> pending["<b>Pending</b><br>waiting for the receipt"]
+    source -- "Manual" --> review{"Review before<br>sending enabled?"}
 
-    Pending --> review: receipt matched and read
-    Pending --> NeedsAttention: unit mismatch or unreadable value
-    Pending --> Failed: no receipt within wait time
+    pending -- "receipt found and read" --> review
+    pending -- "unit mismatch or<br>unreadable value" --> attention
+    pending -- "no receipt within<br>wait time" --> failed
 
-    review --> NeedsAttention: review before sending on
-    review --> Sending: review before sending off
+    review -- "yes" --> attention["<b>Needs attention</b><br>user checks and edits"]
+    review -- "no" --> sending["<b>Sending</b><br>to LubeLogger"]
 
-    NeedsAttention --> Sending: user checks, edits and approves
+    attention -- "user approves" --> sending
 
-    Sending --> Done: record created in LubeLogger
-    Sending --> Failed: LubeLogger rejects, or unreachable after retries
+    sending -- "record created" --> done["<b>Done</b>"]
+    sending -- "rejected, or unreachable<br>after retries" --> failed["<b>Failed</b><br>user is notified"]
 
-    Failed --> Pending: retry receipt search
-    Failed --> review: payment data entered manually
-    Failed --> Sending: retry sending
+    done -- "after grace period" --> deleted(["Deleted from Fuel Tracker<br>(record stays in LubeLogger)"])
 
-    Done --> [*]: deleted after grace period
+    classDef status fill:#e8f1fb,stroke:#3b78c2,color:#111
+    classDef ok fill:#e6f4ea,stroke:#2e7d32,color:#111
+    classDef bad fill:#fdecea,stroke:#c62828,color:#111
+    classDef warn fill:#fff4e5,stroke:#e08a00,color:#111
+    class pending,sending status
+    class done ok
+    class failed bad
+    class attention warn
 ```
 
-*Sending* is an internal state; the UI shows it as Pending. A fuel-up can be
-edited in every state except Sending and Done.
+Colored boxes are the statuses a fuel-up can have. *Sending* is an internal
+status; the UI shows it as Pending.
+
+From **Failed**, the user can recover the fuel-up in three ways (left out of
+the diagram to keep it readable):
+
+- **Retry receipt search**: back to Pending, with a new wait time
+- **Enter payment data manually**: continues at the review question
+- **Retry sending**: back to Sending, for LubeLogger errors
+
+A fuel-up can be edited in every status except Sending and Done.
 
 Sending to LubeLogger, in order:
 
