@@ -75,7 +75,9 @@ LubeLogger, or until it fails.
    - Total price and currency (e.g. *54.03 EUR*)
    - Transaction ID, so the same receipt is never used for two fuel-ups. It
      is written to the LubeLogger notes, so this check still works after
-     Fuel Tracker has deleted its own copy of the fuel-up
+     Fuel Tracker has deleted its own copy of the fuel-up. Before a receipt is
+     used, all fuel records of all vehicles in LubeLogger are checked for its
+     transaction ID, plus the fuel-ups still in progress in Fuel Tracker
 4. If the receipt's units differ from the configured units, or a value can't
    be found on the receipt (for example, because Pace changed the layout), the
    fuel-up is set to **Needs attention** and the user is notified. Nothing is
@@ -111,7 +113,7 @@ When all data is available, the server creates the fuel record in LubeLogger:
 | --- | --- |
 | Date, odometer, fuel amount, cost | From the fuel-up and its payment data |
 | Is fill to full, missed fuel-up | From the fuel-up |
-| Notes | One item per line: fuel type, payment source, the Fuel Tracker user who created the fuel-up and, for receipts, the transaction ID (e.g. *Fuel type: Super* / *Payment: Pace Drive email receipt* / *Created by: alice* / *Transaction ID: b595859d-…*; manual entries have *Payment: Manual* and no transaction ID) |
+| Notes | One item per line: fuel type, payment source, the Fuel Tracker user who created the fuel-up and, for receipts, the transaction ID (e.g. *Fuel type: Super* / *Payment: Pace Drive email receipt* / *Created by: alice* / *PaceDrive Transaction ID: b595859d-…*; manual entries have *Payment: Manual* and no transaction ID) |
 | Extra field *GPS Location* | Raw GPS coordinates (e.g. *52.2063,8.8024*) |
 | Extra field *Address* | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
 | Attachment | The receipt PDF (receipt fuel-ups only) |
@@ -177,8 +179,10 @@ Leave *Required* off: manual fuel-ups have no address, and a required field
 would block editing those records in LubeLogger later. The field names can be
 changed, as long as the same names are entered in the Fuel Tracker settings.
 
-Fuel Tracker also needs a LubeLogger API key with *Edit* permission on the
-vehicles it should log fuel-ups for.
+Fuel Tracker also needs a LubeLogger API key with *Edit* permission on all
+vehicles. Access to every vehicle is needed so the duplicate-receipt check sees
+all fuel records. Which vehicles each Fuel Tracker user can log for is
+controlled in Fuel Tracker.
 
 ## Settings (overview)
 
