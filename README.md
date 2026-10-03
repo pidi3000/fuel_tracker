@@ -94,6 +94,7 @@ When all data is available, the server creates the fuel record in LubeLogger:
 | Notes | Fuel type |
 | Extra field: GPS location | Raw GPS coordinates |
 | Extra field: address | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
+| Attachment | The receipt PDF (receipt fuel-ups only) |
 
 A setting decides whether records are written right away or held for review
 first. During testing, the user checks and corrects each fuel-up in the web UI
