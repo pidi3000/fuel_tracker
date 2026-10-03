@@ -47,6 +47,16 @@ details are linked from each release on GitHub.
 - Receipts without a fuel-up can be completed (vehicle and odometer reading)
   or ignored in the app, and the receipt PDF can be opened.
 
+- Admins can add, edit and remove users in the app and decide which vehicles
+  each user may log fuel-ups for.
+- Settings page for admins: shows whether LubeLogger and the receipt mailbox
+  work, and lets you change the review step, matching window, receipt wait
+  time, time zone, date format, fuel types, units and the keep-time of finished
+  fuel-ups without restarting. A saved value wins over the environment
+  variable until you reset it.
+- Finished fuel-ups are deleted after 7 days (setting), together with their
+  receipt. The fuel record stays in LubeLogger and in the history.
+
 ### Breaking changes / upgrade notes
 
 - To use email receipts, set `IMAP_HOST`, `IMAP_USER` and `IMAP_PASSWORD` for
