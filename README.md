@@ -91,7 +91,7 @@ When all data is available, the server creates the fuel record in LubeLogger:
 | --- | --- |
 | Date, odometer, fuel amount, cost | From the fuel-up and its payment data |
 | Is fill to full, missed fuel-up | From the fuel-up |
-| Notes | Only the fuel type (e.g. *Super*) |
+| Notes | Fuel type and payment source, one per line (e.g. *Fuel type: Super* / *Payment: Pace Drive email receipt*, or *Payment: Manual*) |
 | Extra field *GPS Location* | Raw GPS coordinates (e.g. *52.2063,8.8024*) |
 | Extra field *Address* | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
 | Attachment | The receipt PDF (receipt fuel-ups only) |
