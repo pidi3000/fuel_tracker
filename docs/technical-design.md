@@ -243,8 +243,9 @@ the response.
   can reach the server could claim the admin account, so finish the setup right
   after the first start (the server is only reachable through the VPN).
 
-The app trusts the `X-Forwarded-*` headers only from the configured reverse
-proxy address, so it sees the real HTTPS scheme and client IP.
+The app trusts the `X-Forwarded-*` headers only from the reverse proxy
+addresses in `FORWARDED_ALLOW_IPS`, so it sees the real HTTPS scheme and
+client IP.
 
 ## Settings
 
@@ -270,7 +271,9 @@ until it is reset.
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
 | Notification targets | `APPRISE_URLS` | – | Yes (later) |
 | Session secret | `SECRET_KEY` | – | No |
-| Trusted proxy | `TRUSTED_PROXIES` | – | No |
+| Trusted proxy | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | No |
+| Data directory | `DATA_DIR` | `/data` | No |
+| Log level | `LOG_LEVEL` | `INFO` | No |
 
 Secrets and connection details are environment-only, so they never end up in
 the database or the web UI.
@@ -339,9 +342,10 @@ Pushes to `main` that don't change `VERSION` only publish the `test` image.
 A check on every pull request makes sure `VERSION` is valid and, if it
 changed, that `CHANGELOG.md` has a section for it.
 
-The workflow is drafted in [`docs/drafts/release.yml`](drafts/release.yml). It
-moves to `.github/workflows/` together with the first code, since it needs the
-backend, frontend and `Dockerfile` to run.
+The workflows are in `.github/workflows/`: `ci.yml` runs on every pull
+request, and `release.yml` runs on every push to `main` (it reuses `ci.yml`
+before publishing anything). While `VERSION` is `0.0.0`, nothing is released;
+only the `test` image is published.
 
 Tag, release and images are all created in one workflow run. This matters
 because tags and releases created by a workflow don't start other workflows.
@@ -387,5 +391,7 @@ docker-compose.yml
 - **LubeLogger client**: tests against a mocked LubeLogger API.
 - **API**: FastAPI test client tests for permissions (users only see their
   vehicles) and validation (odometer checks).
-- **CI**: GitHub Actions runs linting (ruff), type checks and tests on every
-  push.
+- **CI**: GitHub Actions runs lint, format checks, tests, the frontend build,
+  a Docker build and a secret scan on every pull request (`ci.yml`). The same
+  checks run locally before each commit through pre-commit
+  (`.pre-commit-config.yaml`).

@@ -17,16 +17,16 @@ housekeeping), not the app itself.
 
 To be discussed with the user before setting up.
 
-- [ ] **Pull request checks**: workflow running lint, tests, frontend build
-  and the `VERSION`/changelog check on every pull request.
-- [ ] **Release workflow**: move [`drafts/release.yml`](drafts/release.yml) to
-  `.github/workflows/`.
+- [x] **Pull request checks**: `.github/workflows/ci.yml` runs lint, tests,
+  the frontend build, a Docker build, a secret scan and the
+  `VERSION`/changelog check on every pull request.
+- [x] **Release workflow**: `.github/workflows/release.yml`.
 - [ ] **Dependabot**: weekly, grouped updates for Python and npm packages, the
   Docker base image and GitHub Actions.
 - [ ] **Image cleanup**: scheduled workflow deleting untagged images older
   than a few weeks from `ghcr.io/pidi3000/fuel_tracker`.
-- [ ] **Pre-commit checks**: formatting and lint (ruff, Prettier/ESLint) and a
-  secret scanner, also run in CI.
+- [x] **Pre-commit checks**: `.pre-commit-config.yaml` with ruff,
+  ESLint/Prettier, gitleaks and file hygiene checks, also run in CI.
 - [ ] **Test receipts**: replace dates, times and IDs in example receipts used
   as test files. Lower priority because the repository is private.
 - [ ] **GitHub setting**: allow workflows to write (Settings → Actions →

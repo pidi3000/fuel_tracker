@@ -1,0 +1,15 @@
+# Example setup. Copy .env.example to .env and fill it in, then: docker compose up -d
+services:
+  fuel-tracker:
+    image: ghcr.io/pidi3000/fuel_tracker:latest
+    container_name: fuel-tracker
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # A named volume, so the app (user 1000 in the container) can write to it
+      - fuel-tracker-data:/data
+
+volumes:
+  fuel-tracker-data:

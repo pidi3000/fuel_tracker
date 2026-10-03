@@ -20,28 +20,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: astral-sh/setup-uv@v6
-      - name: Backend lint and tests
-        working-directory: backend
-        run: |
-          uv sync --frozen
-          uv run ruff check .
-          uv run pytest
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Frontend type check and build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
+    uses: ./.github/workflows/ci.yml
 
   version:
     needs: test
@@ -62,7 +41,11 @@ jobs:
             exit 1
           fi
 
-          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
+          if [[ "$VERSION" == "0.0.0" ]]; then
+            RELEASE=false
+            APP_VERSION="$VERSION-test+${GITHUB_SHA::7}"
+            echo "Version 0.0.0 is never released, building test image only"
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
             RELEASE=false
             APP_VERSION="$VERSION-test+${GITHUB_SHA::7}"
             echo "Tag v$VERSION exists, building test image only"
@@ -81,9 +64,11 @@ jobs:
             fi
           fi
 
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
-          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "release=$RELEASE"
+            echo "app_version=$APP_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
   image:
     needs: version
