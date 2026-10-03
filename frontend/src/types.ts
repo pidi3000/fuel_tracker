@@ -20,3 +20,51 @@ export interface ApiToken {
 export interface ApiTokenCreated extends ApiToken {
   token: string
 }
+
+export interface Vehicle {
+  id: number
+  name: string
+  identifier: string
+}
+
+export interface FuelTypes {
+  fuel_types: string[]
+  volume_unit: string
+  currency: string
+  tz: string
+  review_before_send: boolean
+}
+
+export type FuelUpStatus = 'pending' | 'needs_attention' | 'done' | 'failed'
+
+export interface FuelUp {
+  id: number
+  vehicle_id: number
+  vehicle_name: string
+  odometer: number
+  fuel_up_time: string
+  is_fill_to_full: boolean
+  missed_fuel_up: boolean
+  latitude: number | null
+  longitude: number | null
+  payment_source: 'manual' | 'email_receipt'
+  fuel_type: string | null
+  quantity: string | null
+  total_price: string | null
+  volume_unit: string
+  currency: string
+  address: string | null
+  status: FuelUpStatus
+  sending: boolean
+  attention: string | null
+  attention_message: string | null
+  warnings: string[]
+  error_message: string | null
+  lubelogger_record_id: number | null
+  created_by: string
+  created_at: string
+  updated_at: string
+  editable: boolean
+  has_receipt: boolean
+  receipt_id: number | null
+}

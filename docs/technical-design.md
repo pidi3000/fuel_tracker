@@ -213,6 +213,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `POST` | `/api/auth/password` | Change the own password |
 | `GET`/`POST`/`DELETE` | `/api/tokens`, `/api/tokens/{id}` | The own API tokens (the token is only shown when created) |
 | `GET` | `/api/vehicles` | Vehicles the user may log for (from LubeLogger, filtered) |
+| `GET` | `/api/vehicles/{id}/odometer` | The last odometer reading in LubeLogger (a hint for the form) |
 | `GET` | `/api/fuel-types` | Configured fuel types and units |
 | `POST` | `/api/fuel-ups` | Create a fuel-up; returns `201` with the fuel-up or a validation error |
 | `GET` | `/api/fuel-ups` | Fuel-ups in progress |
@@ -224,6 +225,8 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `POST` | `/api/receipts/{id}/complete`, `/ignore` | Turn into a fuel-up / ignore |
 | `GET` | `/api/events` | Live updates (SSE) |
 | `GET` | `/api/version` | App version (shown in the web UI) |
+| `GET` | `/api/status` | Whether LubeLogger (and later the mailbox) work, and whether the extra fields exist (admin) |
+| `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |
 | `GET`/`PATCH` | `/api/settings` | Effective settings / web UI overrides (admin) |
 | `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
 
