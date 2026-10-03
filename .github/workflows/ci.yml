@@ -1,0 +1,99 @@
+name: CI
+
+# Runs on every pull request, and is reused by the release workflow before
+# anything is published.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      - name: Migrations match the models
+        env:
+          DATA_DIR: ${{ runner.temp }}/data
+        run: |
+          mkdir -p "$DATA_DIR"
+          uv run alembic upgrade head
+          uv run alembic check
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Pre-commit checks (secret scan, file hygiene)
+        env:
+          # Covered by the backend and frontend jobs
+          SKIP: ruff-check,ruff-format,frontend-lint
+        run: pipx run pre-commit run --all-files --show-diff-on-failure
+
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check VERSION and CHANGELOG.md
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=VERSION::'$VERSION' is not a valid version (expected e.g. 1.2.3)"
+            exit 1
+          fi
+
+          # Only for pull requests: a raised version needs its changelog section
+          [[ -n "$BASE_REF" ]] || exit 0
+          BASE_VERSION="$(git show "origin/$BASE_REF:VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+          if [[ -n "$BASE_VERSION" && "$VERSION" != "$BASE_VERSION" && "$VERSION" != "0.0.0" ]] && ! grep -Eq "^## ${VERSION//./\\.}( |$)" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::VERSION changed to $VERSION, but CHANGELOG.md has no '## $VERSION' section"
+            exit 1
+          fi
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
