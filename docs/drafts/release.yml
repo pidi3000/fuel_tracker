@@ -1,0 +1,153 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+  # "Run workflow" button in the Actions tab, e.g. to retry a failed release
+  workflow_dispatch:
+
+permissions:
+  contents: write # create tags and releases
+  packages: write # push images to ghcr.io
+
+# Never run two releases at the same time; queue them instead
+concurrency:
+  group: build-and-release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+      - name: Backend lint and tests
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+          uv run pytest
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend type check and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  version:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+      app_version: ${{ steps.check.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Read VERSION and check for an existing tag
+        id: check
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=VERSION::'$VERSION' is not a valid version (expected e.g. 1.2.3)"
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" > /dev/null; then
+            RELEASE=false
+            APP_VERSION="$VERSION-test+${GITHUB_SHA::7}"
+            echo "Tag v$VERSION exists, building test image only"
+          elif [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            RELEASE=false
+            APP_VERSION="$VERSION-test+${GITHUB_SHA::7}"
+            echo "Not on main, no release"
+          else
+            RELEASE=true
+            APP_VERSION="$VERSION"
+            echo "Tag v$VERSION is new, releasing"
+            # Fail before any image is published if the release notes are missing
+            if ! grep -Eq "^## $VERSION( |$)" CHANGELOG.md; then
+              echo "::error file=CHANGELOG.md::No section '## $VERSION' found"
+              exit 1
+            fi
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=test
+            type=semver,pattern={{version}},value=${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{major}},value=${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.release == 'true' }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_VERSION=${{ needs.version.outputs.app_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: [version, image]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # Everything between "## <version>" and the next "## " heading
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if ($2 == v) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if ! grep -q '[^[:space:]]' release-notes.md; then
+            echo "::error file=CHANGELOG.md::No section '## $VERSION' found"
+            exit 1
+          fi
+
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md

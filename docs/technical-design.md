@@ -297,6 +297,10 @@ Pushes to `main` that don't change `VERSION` only publish the `test` image.
 A check on every pull request makes sure `VERSION` is valid and, if it
 changed, that `CHANGELOG.md` has a section for it.
 
+The workflow is drafted in [`docs/drafts/release.yml`](drafts/release.yml). It
+moves to `.github/workflows/` together with the first code, since it needs the
+backend, frontend and `Dockerfile` to run.
+
 Tag, release and images are all created in one workflow run. This matters
 because tags and releases created by a workflow don't start other workflows.
 
