@@ -126,6 +126,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history and tags, to find the previous release
 
       - name: Extract release notes from CHANGELOG.md
         env:
@@ -141,6 +143,16 @@ jobs:
             echo "::error file=CHANGELOG.md::No section '## $VERSION' found"
             exit 1
           fi
+
+          # Link to all changes since the previous release
+          REPO_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          PREVIOUS="$(git tag --list 'v*' --sort=-v:refname | head -n 1)"
+          if [[ -n "$PREVIOUS" ]]; then
+            LINK="$REPO_URL/compare/$PREVIOUS...v$VERSION"
+          else
+            LINK="$REPO_URL/commits/v$VERSION"
+          fi
+          printf '\n**Full changelog**: %s\n' "$LINK" >> release-notes.md
 
       - name: Create tag and release
         env:

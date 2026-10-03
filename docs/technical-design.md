@@ -272,13 +272,25 @@ the database or the web UI.
 
 The version number lives in one place: the `VERSION` file in the repository
 root (e.g. `1.2.3`, [semantic versioning](https://semver.org)). Release notes
-live in `CHANGELOG.md`, one section per version:
+live in `CHANGELOG.md`, one section per version. They are written for the
+person running the app, not as a list of commits, with these sections (empty
+ones are left out):
 
 ```markdown
-## 1.2.3
+## 1.3.0 - 2026-11-01
 
-- Fixed ...
+### Breaking changes / upgrade notes
+- The setting `RECEIPT_TIMEOUT_MINUTES` was renamed to `RECEIPT_WAIT_MINUTES`.
+  Rename it in your `.env` before updating.
+
+### New
+- Unmatched receipts can now be ignored from the overview.
+
+### Fixed
+- Receipts with a discount line were not read correctly.
 ```
+
+The technical details are in the git history; each release links to them.
 
 The backend reads `VERSION` at start-up and returns it from `GET /api/version`;
 the web UI shows it in the footer. Images built from `main` show the version
@@ -290,8 +302,10 @@ with the commit, e.g. `1.2.3-test+a1b2c3d`.
    to `CHANGELOG.md`.
 2. The pull request is merged into `main`.
 3. GitHub Actions notices that no tag `v<VERSION>` exists yet, runs the tests,
-   creates the tag and the GitHub release (text taken from the changelog
-   section) and publishes the images.
+   creates the tag and the GitHub release and publishes the images. The
+   release text is the changelog section, followed by a *Full changelog* link
+   to GitHub's comparison with the previous release (all commits and changed
+   files).
 
 Pushes to `main` that don't change `VERSION` only publish the `test` image.
 A check on every pull request makes sure `VERSION` is valid and, if it
