@@ -35,6 +35,18 @@ details are linked from each release on GitHub.
 - Receipts in another unit or currency than LubeLogger's, or with values that
   can't be read, wait for your attention instead of being sent.
 
+- Overview page that updates by itself, without reloading: fuel-ups in
+  progress with their status, receipts without a fuel-up, and the history of
+  your fuel records, loaded from LubeLogger (so it includes records you enter
+  there directly).
+- Fuel-up page: see all details and messages, approve a fuel-up that waits for
+  review, retry a failed one, and edit it until it is in LubeLogger. A fuel-up
+  that waits for its receipt can be switched to manual entry.
+- Notifications (bell in the header): failures, receipts that need attention
+  and receipts without a fuel-up, also shown as a message when they happen.
+- Receipts without a fuel-up can be completed (vehicle and odometer reading)
+  or ignored in the app, and the receipt PDF can be opened.
+
 ### Breaking changes / upgrade notes
 
 - To use email receipts, set `IMAP_HOST`, `IMAP_USER` and `IMAP_PASSWORD` for

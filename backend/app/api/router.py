@@ -1,6 +1,16 @@
 from fastapi import APIRouter
 
-from app.api import auth, fuel_ups, notifications, receipts, reference, system, users
+from app.api import (
+    auth,
+    events,
+    fuel_ups,
+    history,
+    notifications,
+    receipts,
+    reference,
+    system,
+    users,
+)
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(system.router)
@@ -10,3 +20,5 @@ api_router.include_router(reference.router)
 api_router.include_router(fuel_ups.router)
 api_router.include_router(notifications.router)
 api_router.include_router(receipts.router)
+api_router.include_router(events.router)
+api_router.include_router(history.router)

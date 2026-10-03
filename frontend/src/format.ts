@@ -32,3 +32,13 @@ export function formatTime(value: string | null): string {
   if (!value) return '–'
   return new Date(value).toLocaleTimeString(undefined, { timeStyle: 'short' })
 }
+
+/** A date as the API sends it ("2026-09-23"), without shifting it by the time zone. */
+export function formatDate(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year!, month! - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' })
+}
+
+export function formatCoordinates(latitude: number | null, longitude: number | null): string {
+  return latitude === null || longitude === null ? '–' : `${latitude}, ${longitude}`
+}
