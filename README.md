@@ -91,9 +91,9 @@ When all data is available, the server creates the fuel record in LubeLogger:
 | --- | --- |
 | Date, odometer, fuel amount, cost | From the fuel-up and its payment data |
 | Is fill to full, missed fuel-up | From the fuel-up |
-| Notes | Fuel type |
-| Extra field: GPS location | Raw GPS coordinates |
-| Extra field: address | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
+| Notes | Only the fuel type (e.g. *Super*) |
+| Extra field *GPS Location* | Raw GPS coordinates (e.g. *52.2063,8.8024*) |
+| Extra field *Address* | Station name and address from the receipt (empty for manual entries). The station name may move to its own extra field or a tag later |
 | Attachment | The receipt PDF (receipt fuel-ups only) |
 
 A setting decides whether records are written right away or held for review
@@ -127,9 +127,27 @@ The server is only reachable through a VPN and sits behind a reverse proxy, but
 it still handles login itself. The Shortcut uses the same API with its own
 credentials.
 
+## LubeLogger setup
+
+Before using Fuel Tracker, create these extra fields for **fuel records** in
+LubeLogger (*Settings → Extra Fields*, record type *Gas Records*):
+
+| Name | Type | Required | Content |
+| --- | --- | --- | --- |
+| GPS Location | Location | No | Raw GPS coordinates, in the same *latitude,longitude* format that LubeLogger's own location button uses |
+| Address | Text | No | Station name and postal address from the receipt |
+
+Leave *Required* off: manual fuel-ups have no address, and a required field
+would block editing those records in LubeLogger later. The field names can be
+changed, as long as the same names are entered in the Fuel Tracker settings.
+
+Fuel Tracker also needs a LubeLogger API key with *Edit* permission on the
+vehicles it should log fuel-ups for.
+
 ## Settings (overview)
 
-- LubeLogger connection, including the names of the two extra fields
+- LubeLogger connection and API key, plus the names of the two extra fields
+  (defaults: *GPS Location*, *Address*)
 - Email inbox access
 - Matching window between fuel-up and receipt (default 10 minutes)
 - How long to wait for a receipt before failing (default 60 minutes)
