@@ -16,6 +16,8 @@ Fuel Tracker connects these systems. The user only provides what nothing else
 knows (vehicle, odometer reading, location). The server collects the rest and
 then creates the fuel record in LubeLogger.
 
+For how it is built, see the [technical design](docs/technical-design.md).
+
 ## Connected systems
 
 | System | Role |
