@@ -102,6 +102,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: APP_VERSION=${{ needs.version.outputs.app_version }}
+          # One manifest per tag: build attestations would add untagged versions that the
+          # image cleanup must not delete
+          provenance: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

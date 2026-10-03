@@ -1,0 +1,22 @@
+name: Clean up old images
+
+# Every push to main replaces the "test" image and leaves the previous one
+# without a tag. They are deleted here, keeping the 10 newest versions.
+on:
+  schedule:
+    - cron: "17 3 * * 0" # Sundays, 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  untagged:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: container
+          delete-only-untagged-versions: true
+          min-versions-to-keep: 10
