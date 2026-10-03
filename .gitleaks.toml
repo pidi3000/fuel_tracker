@@ -1,0 +1,9 @@
+# Settings for the secret scan (pre-commit and CI)
+title = "Fuel Tracker"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Receipts and IDs in the generated test receipts are made up"
+paths = ['''backend/tests/fixtures/receipts/''']
