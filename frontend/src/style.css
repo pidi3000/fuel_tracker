@@ -443,3 +443,49 @@ th {
 .page-head h1 {
   margin: 0;
 }
+
+/* --- details, notifications, live indicator --- */
+
+table.kv th {
+  width: 9rem;
+  font-size: 0.85rem;
+}
+
+.count {
+  display: inline-block;
+  margin-left: 0.3rem;
+  min-width: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--accent-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.live-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.5;
+}
+
+.live-dot.on {
+  background: var(--ok);
+  opacity: 1;
+}
+
+.unread {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+.warn-text {
+  color: var(--warn);
+}

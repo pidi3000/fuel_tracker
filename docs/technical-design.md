@@ -226,10 +226,10 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET`/`PATCH` | `/api/fuel-ups/{id}` | View / edit a fuel-up before it's sent |
 | `POST` | `/api/fuel-ups/{id}/approve` | Send a reviewed fuel-up to LubeLogger |
 | `POST` | `/api/fuel-ups/{id}/retry` | Retry receipt search or sending |
-| `GET` | `/api/history` | Past fuel records from LubeLogger |
+| `GET` | `/api/history` | Past fuel records from LubeLogger (newest first; `vehicle_id`, `limit`, `offset`) |
 | `GET` | `/api/receipts/unmatched` | Unmatched receipts |
 | `POST` | `/api/receipts/{id}/complete`, `/ignore` | Turn into a fuel-up / ignore |
-| `GET` | `/api/events` | Live updates (SSE) |
+| `GET` | `/api/events` | Live updates (SSE): `fuel_up`, `receipt` and `notification` events carry only an id; the client reloads the data through the API |
 | `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET` | `/api/status` | Whether LubeLogger (and later the mailbox) work, and whether the extra fields exist (admin) |
 | `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |

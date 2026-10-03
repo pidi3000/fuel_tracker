@@ -69,3 +69,51 @@ export interface FuelUp {
   waiting_for_receipt: boolean
   receipt_deadline: string | null
 }
+
+export interface Receipt {
+  id: number
+  state: 'unmatched' | 'matched' | 'ignored'
+  mail_subject: string
+  station: string | null
+  address: string | null
+  paid_at: string | null
+  printed_date: string | null
+  fuel_type: string | null
+  quantity: string | null
+  unit: string | null
+  total: string | null
+  currency: string | null
+  transaction_id: string | null
+  missing: string[]
+  warnings: string[]
+  parse_error: string | null
+  created_at: string
+  fuel_up_id: number | null
+  has_pdf: boolean
+}
+
+export interface HistoryRecord {
+  id: number
+  vehicle_id: number
+  vehicle_name: string
+  date: string
+  odometer: number
+  fuel_consumed: string
+  cost: string
+  is_fill_to_full: boolean
+  missed_fuel_up: boolean
+  notes: string
+  gps: string | null
+  address: string | null
+  files: { name: string; location: string }[]
+}
+
+export interface AppNotification {
+  id: number
+  level: 'info' | 'warning' | 'error'
+  title: string
+  message: string
+  fuel_up_id: number | null
+  is_read: boolean
+  created_at: string
+}

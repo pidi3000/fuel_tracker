@@ -271,19 +271,26 @@ async def update(
     if not fuel_up.editable:
         raise FuelUpError(409, "This fuel-up can't be edited any more.")
 
-    if "vehicle_id" in changes and changes["vehicle_id"] != fuel_up.vehicle_id:
+    # Values that are sent unchanged are no change (the web UI sends the whole form)
+    if changes.get("payment_source") == fuel_up.payment_source:
+        del changes["payment_source"]
+    vehicle_changed = "vehicle_id" in changes and changes["vehicle_id"] != fuel_up.vehicle_id
+    if vehicle_changed:
         vehicle = await vehicle_for(ctx, user, changes["vehicle_id"])
         fuel_up.vehicle_id = vehicle.id
         fuel_up.vehicle_name = vehicle.name
         changes.setdefault("odometer", fuel_up.odometer)
-    if "odometer" in changes:
+    # The odometer is only checked when it (or the vehicle) changes: LubeLogger may have moved on
+    if "odometer" in changes and (vehicle_changed or changes["odometer"] != fuel_up.odometer):
         await check_odometer(session, ctx, fuel_up.vehicle_id, changes["odometer"], fuel_up.id)
+    if "odometer" in changes:
         fuel_up.odometer = changes["odometer"]
     if "fuel_up_time" in changes:
-        fuel_up.fuel_up_time = as_utc(changes["fuel_up_time"], ctx.runtime)
-        if fuel_up.status == Status.PENDING:
+        new_time = as_utc(changes["fuel_up_time"], ctx.runtime)
+        if new_time != fuel_up.fuel_up_time and fuel_up.status == Status.PENDING:
             # A receipt that fits the new time may already be here; the matcher looks again
             fuel_up.pending_since = utcnow()
+        fuel_up.fuel_up_time = new_time
     for field in ("is_fill_to_full", "missed_fuel_up"):
         if field in changes:
             setattr(fuel_up, field, changes[field])
@@ -293,8 +300,13 @@ async def update(
 
     payment_fields = {"fuel_type", "quantity", "total_price", "payment_source"}
     if payment_fields & changes.keys():
-        if fuel_up.status == Status.PENDING:
-            raise FuelUpError(409, "The payment data comes from the receipt. Wait for it.")
+        switching_to_manual = changes.get("payment_source") == PaymentSource.MANUAL
+        if fuel_up.status == Status.PENDING and not switching_to_manual:
+            raise FuelUpError(
+                409,
+                "The payment data comes from the receipt. Wait for it, "
+                "or switch to entering it manually.",
+            )
         if changes.get("payment_source") == PaymentSource.MANUAL:
             fuel_up.payment_source = PaymentSource.MANUAL
         elif changes.get("payment_source") == PaymentSource.EMAIL_RECEIPT and (
@@ -305,6 +317,9 @@ async def update(
             if field in changes:
                 setattr(fuel_up, field, changes[field])
         check_fuel_up_payment(ctx, fuel_up)
+        if fuel_up.status == Status.PENDING:
+            # No need to wait for a receipt any more
+            advance_when_complete(ctx, fuel_up)
     touch(ctx, fuel_up)
     return fuel_up
 
