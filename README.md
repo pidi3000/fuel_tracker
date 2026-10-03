@@ -80,6 +80,20 @@ LubeLogger, or until it fails.
    guessed. Automatic unit conversion may come later.
 5. If no matching receipt arrives within the configurable wait time (default:
    60 minutes), the fuel-up is marked **Failed** and the user is notified.
+6. Once a receipt has been used or ignored, its email is moved to a separate,
+   configurable folder (default: *Processed*). The inbox then only holds
+   receipts that haven't been dealt with yet.
+
+### Receipts without a fuel-up
+
+A receipt that matches no fuel-up is listed in the web UI as an unmatched
+receipt. The user can either:
+
+- **Complete it**: add the vehicle, odometer reading and other fuel-up fields.
+  It is then processed like any other fuel-up.
+- **Ignore it**: for example, when paying for a vehicle that isn't tracked in
+  LubeLogger. The receipt is moved to the processed folder and no record is
+  created.
 
 ### Manual payment data
 
@@ -115,8 +129,13 @@ The web UI lists all fuel-ups with their status:
 | **Done** | Created in LubeLogger |
 | **Failed** | No receipt arrived in time, or LubeLogger rejected the record or stayed unreachable after several retries |
 
-For a failed fuel-up, the user can retry the receipt search or enter the payment
-data manually. Notifications are only sent when something fails or needs
+Until a fuel-up is sent to LubeLogger (status Pending, Needs attention or
+Failed), the user can edit all its fields, such as a mistyped odometer reading.
+Fuel-ups can't be deleted. Once a fuel-up is Done, changes are made in
+LubeLogger.
+
+For a failed fuel-up, the user can also retry the receipt search or enter the
+payment data manually. Notifications are only sent when something fails or needs
 attention, never on success.
 
 ### Users and access
@@ -152,7 +171,8 @@ vehicles it should log fuel-ups for.
 
 - LubeLogger connection and API key, plus the names of the two extra fields
   (defaults: *GPS Location*, *Address*)
-- Email inbox access
+- Email inbox access, and the folder for processed receipts (default
+  *Processed*)
 - Matching window between fuel-up and receipt (default 10 minutes)
 - How long to wait for a receipt before failing (default 60 minutes)
 - Time zone (e.g. Europe/Berlin)
