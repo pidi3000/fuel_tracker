@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # Built web UI; served by FastAPI when present
     static_dir: Path = Path(__file__).resolve().parents[2] / "static"
     log_level: str = "INFO"
+    # How long a web UI login lasts
+    session_days: int = 30
 
     @property
     def database_url(self) -> str:

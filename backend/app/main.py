@@ -5,8 +5,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.types import Scope
@@ -15,6 +17,8 @@ from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.database import create_engine, run_migrations
 from app.core.version import get_version
+from app.services.auth import AuthError
+from app.services.ratelimit import FailureLimiter
 
 logger = logging.getLogger("fuel_tracker")
 
@@ -46,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_engine(settings.database_url)
         await run_migrations(engine)
         app.state.engine = engine
+        app.state.sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
         logger.info("Fuel Tracker %s started", get_version())
         yield
         await engine.dispose()
@@ -58,6 +63,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json",
     )
+    app.state.settings = settings
+    app.state.login_limiter = FailureLimiter()
+
+    @app.exception_handler(AuthError)
+    async def auth_error_handler(_: Request, exc: AuthError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+
     app.include_router(api_router)
 
     if Path(settings.static_dir, "index.html").is_file():

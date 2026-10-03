@@ -209,6 +209,9 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | --- | --- | --- |
 | `GET`/`POST` | `/api/setup` | First-run status / create the first admin (only while no user exists) |
 | `POST` | `/api/auth/login`, `/api/auth/logout` | Web UI login (session cookie) |
+| `GET` | `/api/auth/me` | The signed-in user |
+| `POST` | `/api/auth/password` | Change the own password |
+| `GET`/`POST`/`DELETE` | `/api/tokens`, `/api/tokens/{id}` | The own API tokens (the token is only shown when created) |
 | `GET` | `/api/vehicles` | Vehicles the user may log for (from LubeLogger, filtered) |
 | `GET` | `/api/fuel-types` | Configured fuel types and units |
 | `POST` | `/api/fuel-ups` | Create a fuel-up; returns `201` with the fuel-up or a validation error |
@@ -222,7 +225,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/events` | Live updates (SSE) |
 | `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET`/`PATCH` | `/api/settings` | Effective settings / web UI overrides (admin) |
-| | `/api/users`, `/api/users/{id}/tokens` | User, vehicle access and token management (admin) |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
 
 The Shortcut makes a single `POST /api/fuel-ups` call with an API token in the
 `Authorization: Bearer …` header, and shows success or the error message from
@@ -230,8 +233,12 @@ the response.
 
 ## Authentication and permissions
 
-- **Web UI**: username and password, then a secure, HTTP-only session cookie.
-  Login is rate-limited.
+- **Web UI**: username and password (at least 8 characters, hashed with
+  argon2), then a random session token in an HTTP-only, `SameSite=Lax` cookie
+  (`Secure` when served over HTTPS). Sessions are stored in the database, last
+  30 days (`SESSION_DAYS`) and can be revoked: changing a password signs out
+  all other browsers. Failed logins are rate-limited (10 per 10 minutes, per
+  client address and per username).
 - **Shortcut and other clients**: personal API tokens, created by a user in the
   web UI. Shown once, stored only as a hash, can be revoked.
 - **Roles**: *admin* can do everything; *user* can only see and create
@@ -270,7 +277,7 @@ until it is reset.
 | Volume unit / currency | `VOLUME_UNIT`, `CURRENCY` | `L`, `EUR` | Yes |
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
 | Notification targets | `APPRISE_URLS` | – | Yes (later) |
-| Session secret | `SECRET_KEY` | – | No |
+| Session lifetime | `SESSION_DAYS` | `30` | No |
 | Trusted proxy | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | No |
 | Data directory | `DATA_DIR` | `/data` | No |
 | Log level | `LOG_LEVEL` | `INFO` | No |
