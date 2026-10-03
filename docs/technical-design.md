@@ -233,6 +233,9 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET` | `/api/status` | Whether LubeLogger (and later the mailbox) work, and whether the extra fields exist (admin) |
 | `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |
+| `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
+| `GET` | `/api/receipts/{id}`, `/api/receipts/{id}/pdf` | One receipt, and its PDF |
+| `POST` | `/api/receipts/{id}/complete`, `/api/receipts/{id}/ignore` | Turn a receipt into a fuel-up / ignore it |
 | `GET`/`PATCH` | `/api/settings` | Effective settings / web UI overrides (admin) |
 | `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
 
@@ -277,6 +280,7 @@ until it is reset.
 | IMAP host, port, user, password | `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD` | port `993` | No |
 | Inbox / processed folder | `IMAP_INBOX`, `IMAP_PROCESSED_FOLDER` | `INBOX`, `Processed` | No |
 | Receipt sender / subject pattern | `RECEIPT_SENDER`, `RECEIPT_SUBJECT_PATTERN` | `no-reply@connectedfueling.com`, `\| PACE Pay$` | No |
+| Mailbox use of SSL, check interval | `IMAP_SSL`, `IMAP_POLL_SECONDS` | `true`, `300` | No |
 | Matching window | `MATCH_WINDOW_MINUTES` | `10` | Yes |
 | Receipt wait time | `RECEIPT_TIMEOUT_MINUTES` | `60` | Yes |
 | Time zone | `TZ` | `Europe/Berlin` | Yes |

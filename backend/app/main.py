@@ -21,9 +21,17 @@ from app.core.version import get_version
 from app.services.auth import AuthError
 from app.services.container import Services
 from app.services.events import EventBus
+from app.services.fuel_ups import Context
 from app.services.lubelogger import LubeLoggerClient
+from app.services.mail import ImapMailbox, MailWatcher, ReceiptMailHandler
 from app.services.processor import Processor
 from app.services.ratelimit import FailureLimiter
+from app.services.receipts import (
+    ReceiptContext,
+    expire_waiting_fuel_ups,
+    notify_lonely_receipts,
+    rematch_waiting,
+)
 from app.services.runtime_settings import RuntimeSettings
 from app.services.vehicles import VehicleDirectory
 
@@ -45,6 +53,33 @@ class SpaStaticFiles(StaticFiles):
         if response is None:
             raise HTTPException(status_code=404)
         return response
+
+
+def start_mail_watcher(settings: Settings, services: Services) -> MailWatcher:
+    """Watch the receipt mailbox in a background thread."""
+
+    def make_mailbox() -> ImapMailbox:
+        return ImapMailbox(
+            host=settings.imap_host,
+            port=settings.imap_port,
+            ssl=settings.imap_ssl,
+            user=settings.imap_user,
+            password=settings.imap_password,
+            inbox=settings.imap_inbox,
+            processed_folder=settings.imap_processed_folder,
+        )
+
+    watcher = MailWatcher(
+        make_mailbox,
+        ReceiptMailHandler(services.sessionmaker, services.receipts, services.processor.wake),
+        asyncio.get_running_loop(),
+        sender=settings.receipt_sender,
+        subject_pattern=settings.receipt_subject_pattern,
+        processed_folder=settings.imap_processed_folder,
+        poll_seconds=settings.imap_poll_seconds,
+    )
+    watcher.start()
+    return watcher
 
 
 def create_app(
@@ -77,8 +112,9 @@ def create_app(
             client,
             gps_field=settings.lubelogger_field_gps,
             address_field=settings.lubelogger_field_address,
+            receipt_dir=settings.data_dir / "receipts",
         )
-        app.state.services = Services(
+        services = Services(
             settings=settings,
             sessionmaker=sessionmaker,
             runtime=runtime,
@@ -86,13 +122,32 @@ def create_app(
             lubelogger=client,
             vehicles=vehicles,
             processor=processor,
+            receipts=ReceiptContext(
+                fuel=Context(runtime=runtime, events=events, lubelogger=client, vehicles=vehicles),
+                data_dir=settings.data_dir,
+            ),
         )
+        app.state.services = services
+
+        async def match_and_expire() -> None:
+            async with sessionmaker() as session:
+                await expire_waiting_fuel_ups(session, services.receipts)
+                if await rematch_waiting(session, services.receipts):
+                    processor.wake()
+                await notify_lonely_receipts(session, services.receipts)
+                await session.commit()
+
+        processor.periodic_jobs.append(match_and_expire)
 
         tasks: list[asyncio.Task] = []
         if settings.background_workers:
             tasks.append(asyncio.create_task(processor.run(), name="processor"))
+            if settings.imap_configured:
+                services.mail_watcher = start_mail_watcher(settings, services)
         logger.info("Fuel Tracker %s started", get_version())
         yield
+        if services.mail_watcher is not None:
+            await asyncio.to_thread(services.mail_watcher.stop)
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
