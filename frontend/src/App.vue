@@ -58,6 +58,10 @@ async function signOut() {
             }}</span>
           </RouterLink>
           <RouterLink to="/account">Account</RouterLink>
+          <template v-if="auth.user.role === 'admin'">
+            <RouterLink to="/admin/users">Users</RouterLink>
+            <RouterLink to="/admin/settings">Settings</RouterLink>
+          </template>
         </nav>
         <span
           class="live-dot"

@@ -236,7 +236,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
 | `GET` | `/api/receipts/{id}`, `/api/receipts/{id}/pdf` | One receipt, and its PDF |
 | `POST` | `/api/receipts/{id}/complete`, `/api/receipts/{id}/ignore` | Turn a receipt into a fuel-up / ignore it |
-| `GET`/`PATCH` | `/api/settings` | Effective settings / web UI overrides (admin) |
+| `GET`, `PUT`/`DELETE` | `/api/settings`, `/api/settings/{key}` | Effective settings and read-only connection details / set or reset a web UI override (admin) |
 | `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
 
 The Shortcut makes a single `POST /api/fuel-ups` call with an API token in the
