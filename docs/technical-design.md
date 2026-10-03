@@ -390,10 +390,10 @@ backend/
     api/            # FastAPI routers
     core/           # settings, security, database
     models/         # SQLAlchemy models
-    services/       # lubelogger client, mail watcher, receipt parser, matcher, processor
-    workers/        # background tasks and scheduler
+    services/       # LubeLogger client, mail watcher, receipt parser and matching,
+                    # sending (processor with its periodic jobs), cleanup, settings, auth
   migrations/       # Alembic
-  tests/            # incl. example receipts
+  tests/            # incl. generated example receipts (tests/fixtures/receipts)
 frontend/           # Vue 3 + Vite PWA
 docs/
 VERSION
@@ -405,12 +405,16 @@ docker-compose.yml
 
 ## Testing
 
-- **Receipt parser**: tested against real example receipts (with personal data
-  removed if needed).
-- **Matching and lifecycle**: unit tests for each status change.
-- **LubeLogger client**: tests against a mocked LubeLogger API.
-- **API**: FastAPI test client tests for permissions (users only see their
-  vehicles) and validation (odometer checks).
+- **Receipt parser**: tested against example receipts with made-up values
+  (`backend/tests/fixtures/receipts`, generated to match the layout of a real
+  one) and against text variations.
+- **Matching and lifecycle**: tests for each status change, with a fake
+  LubeLogger (`tests/fake_lubelogger.py`) and a fake mailbox.
+- **LubeLogger client and IMAP**: the same code is also tested against a real
+  LubeLogger and a real IMAP server when `LUBELOGGER_TEST_URL` and
+  `IMAP_TEST_HOST` are set (see `docs/development.md`).
+- **API**: tests for permissions (users only see their vehicles), validation
+  (odometer checks) and the live updates.
 - **CI**: GitHub Actions runs lint, format checks, tests, the frontend build,
   a Docker build and a secret scan on every pull request (`ci.yml`). The same
   checks run locally before each commit through pre-commit
