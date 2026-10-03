@@ -21,13 +21,16 @@ To be discussed with the user before setting up.
   the frontend build, a Docker build, a secret scan and the
   `VERSION`/changelog check on every pull request.
 - [x] **Release workflow**: `.github/workflows/release.yml`.
-- [ ] **Dependabot**: weekly, grouped updates for Python and npm packages, the
-  Docker base image and GitHub Actions.
-- [ ] **Image cleanup**: scheduled workflow deleting untagged images older
-  than a few weeks from `ghcr.io/pidi3000/fuel_tracker`.
+- [x] **Dependabot**: `.github/dependabot.yml`: weekly, grouped updates for
+  Python and npm packages, the Docker base images and GitHub Actions.
+- [x] **Image cleanup**: `.github/workflows/cleanup-images.yml` deletes
+  untagged images from `ghcr.io/pidi3000/fuel_tracker` every week, keeping the
+  10 newest versions. The release workflow builds without provenance
+  attestations, so there are no untagged versions that belong to a tagged
+  image.
 - [x] **Pre-commit checks**: `.pre-commit-config.yaml` with ruff,
   ESLint/Prettier, gitleaks and file hygiene checks, also run in CI.
-- [ ] **Test receipts**: replace dates, times and IDs in example receipts used
-  as test files. Lower priority because the repository is private.
+- [x] **Test receipts**: the example receipts in `backend/tests/fixtures/receipts`
+  are generated with made-up values; real receipts are not committed.
 - [ ] **GitHub setting**: allow workflows to write (Settings → Actions →
   General → Workflow permissions), needed for tags, releases and images.
