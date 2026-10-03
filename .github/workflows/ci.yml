@@ -50,16 +50,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Pre-commit checks (secret scan, file hygiene)
+      - name: Pre-commit checks (file hygiene)
         env:
-          # Covered by the backend and frontend jobs
-          SKIP: ruff-check,ruff-format,frontend-lint
+          # Linters run in the backend and frontend jobs; gitleaks in the next step
+          SKIP: ruff-check,ruff-format,frontend-lint,gitleaks
         run: pipx run pre-commit run --all-files --show-diff-on-failure
+      - name: Scan the files for secrets
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            dir /repo --no-banner --config /repo/.gitleaks.toml
 
   version:
     runs-on: ubuntu-latest
