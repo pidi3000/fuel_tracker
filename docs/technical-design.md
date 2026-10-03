@@ -80,9 +80,8 @@ fuel-ups are deleted after the grace period; LubeLogger is the long-term store.
 | `notifications` | Messages shown in the web UI (e.g. "Fuel-up failed"), read flag |
 | `settings_overrides` | Settings changed in the web UI (see [Settings](#settings)) |
 
-Receipt PDFs are stored in the database (or as files under `/data/receipts/`)
-only until they have been uploaded to LubeLogger, and are deleted with the
-fuel-up.
+Receipt PDFs are stored as files under `/data/receipts/` only until they have
+been uploaded to LubeLogger, and are deleted with the fuel-up.
 
 ## Fuel-up lifecycle
 
