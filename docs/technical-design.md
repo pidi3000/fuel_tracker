@@ -72,7 +72,7 @@ fuel-ups are deleted after the grace period; LubeLogger is the long-term store.
 
 | Table | Contents |
 | --- | --- |
-| `users` | Username, password hash, role (admin/user), active flag |
+| `users` | Username, optional email address (for notifications later), password hash, role (admin/user), active flag |
 | `user_vehicles` | Which LubeLogger vehicle IDs a user may log for |
 | `api_tokens` | Per-user tokens for the Shortcut (stored hashed), name, last used |
 | `fuel_ups` | Vehicle, odometer, date/time, full/missed flags, GPS, payment source, manual payment data, status, warnings, error message, LubeLogger record ID once sent, created by, timestamps |
@@ -133,8 +133,10 @@ The mail watcher keeps one IMAP connection to the MXroute inbox:
 
 For each new email:
 
-1. Recognize a Pace receipt: PDF attachment and sender/subject matching the
-   configured patterns. Other emails are left alone.
+1. Recognize a Pace receipt: a PDF attachment, sent from
+   `no-reply@connectedfueling.com`, with a subject ending in `| PACE Pay`
+   (e.g. *Your receipt from Wednesday, September 23, 2026 | PACE Pay*). Other
+   emails are left alone.
 2. Extract the receipt data from the PDF (below) and store it.
 3. **Move the email** to the processed folder (created if missing).
 4. Match it to a pending fuel-up, or list it as unmatched.
@@ -182,6 +184,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| `GET`/`POST` | `/api/setup` | First-run status / create the first admin (only while no user exists) |
 | `POST` | `/api/auth/login`, `/api/auth/logout` | Web UI login (session cookie) |
 | `GET` | `/api/vehicles` | Vehicles the user may log for (from LubeLogger, filtered) |
 | `GET` | `/api/fuel-types` | Configured fuel types and units |
@@ -209,8 +212,12 @@ the response.
   web UI. Shown once, stored only as a hash, can be revoked.
 - **Roles**: *admin* can do everything; *user* can only see and create
   fuel-ups and history for their assigned vehicles.
-- **First start**: an admin account is created from `INITIAL_ADMIN_USERNAME` /
-  `INITIAL_ADMIN_PASSWORD` if no users exist yet.
+- **First start**: while no user exists, the web UI shows a setup page instead
+  of the login. It asks for username, password and an optional email address,
+  and creates that user as admin. Afterwards the setup page and its API
+  endpoint (`POST /api/setup`) are permanently disabled. Until then, anyone who
+  can reach the server could claim the admin account, so finish the setup right
+  after the first start (the server is only reachable through the VPN).
 
 The app trusts the `X-Forwarded-*` headers only from the configured reverse
 proxy address, so it sees the real HTTPS scheme and client IP.
@@ -225,10 +232,10 @@ until it is reset.
 | --- | --- | --- | --- |
 | LubeLogger URL | `LUBELOGGER_URL` | – | No |
 | LubeLogger API key | `LUBELOGGER_API_KEY` | – | No |
-| Extra field names | `LUBELOGGER_FIELD_GPS`, `LUBELOGGER_FIELD_ADDRESS` | `GPS Location`, `Address` | Yes |
+| Extra field names | `LUBELOGGER_FIELD_GPS`, `LUBELOGGER_FIELD_ADDRESS` | `GPS Location`, `Address` | No |
 | IMAP host, port, user, password | `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD` | port `993` | No |
-| Inbox / processed folder | `IMAP_INBOX`, `IMAP_PROCESSED_FOLDER` | `INBOX`, `Processed` | Yes |
-| Receipt sender / subject patterns | `RECEIPT_SENDER`, `RECEIPT_SUBJECT` | Pace defaults | Yes |
+| Inbox / processed folder | `IMAP_INBOX`, `IMAP_PROCESSED_FOLDER` | `INBOX`, `Processed` | No |
+| Receipt sender / subject pattern | `RECEIPT_SENDER`, `RECEIPT_SUBJECT_PATTERN` | `no-reply@connectedfueling.com`, `\| PACE Pay$` | No |
 | Matching window | `MATCH_WINDOW_MINUTES` | `10` | Yes |
 | Receipt wait time | `RECEIPT_TIMEOUT_MINUTES` | `60` | Yes |
 | Time zone | `TZ` | `Europe/Berlin` | Yes |
@@ -238,7 +245,6 @@ until it is reset.
 | Volume unit / currency | `VOLUME_UNIT`, `CURRENCY` | `L`, `EUR` | Yes |
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
 | Notification targets | `APPRISE_URLS` | – | Yes (later) |
-| Initial admin | `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_PASSWORD` | – | No |
 | Session secret | `SECRET_KEY` | – | No |
 | Trusted proxy | `TRUSTED_PROXIES` | – | No |
 
@@ -260,6 +266,19 @@ the database or the web UI.
   `/api/events` (SSE).
 - **Example** `docker-compose.yml` and `.env.example` are included in the
   repository.
+
+### Image publishing
+
+GitHub Actions builds the image and publishes it to the GitHub Container
+Registry (`ghcr.io/pidi3000/fuel_tracker`):
+
+| Trigger | Tags |
+| --- | --- |
+| Push to `main` | `test` |
+| Release `v1.2.3` | `1.2.3`, `1.2`, `1`, `latest` |
+
+Images are only published after the tests pass. For production, pin a major
+version (e.g. `:1`) or `:latest`; `:test` always follows `main`.
 
 ## Project layout
 
