@@ -1,0 +1,12 @@
+{
+  "station": "TESTOIL",
+  "address": "TESTOIL, Am Testpark 100, 98765 Prüfdorf",
+  "printed_date": "12/31/2026, 11:56 PM",
+  "paid_at": "2026-12-31T23:56+01:00",
+  "fuel_type": "Super E10",
+  "quantity": "9.81",
+  "unit": "L",
+  "total": "16.96",
+  "currency": "EUR",
+  "transaction_id": "0f0f0f0f-a1a1-4b2b-9c3c-d4d4d4d4d4d4"
+}
