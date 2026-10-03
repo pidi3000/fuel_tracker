@@ -60,3 +60,17 @@ Migrations run automatically when the app starts.
 docker build -t fuel-tracker:local --build-arg APP_VERSION=0.0.0-test+local .
 docker run --rm -p 8000:8000 -v fuel-tracker-data:/data fuel-tracker:local
 ```
+
+## Testing against a real LubeLogger
+
+The tests use a fake LubeLogger by default. One extra test talks to a real one
+(it is skipped otherwise). Use a throwaway LubeLogger, as the test creates
+fuel records in it:
+
+```sh
+LUBELOGGER_TEST_URL=http://localhost:8080 uv run pytest tests/test_lubelogger_integration.py
+```
+
+Create a vehicle first (`POST /api/vehicles/add`). To run LubeLogger from its
+source, build it with the .NET SDK (`dotnet publish -c Release`) and start it
+with `ASPNETCORE_URLS=http://127.0.0.1:8080 dotnet CarCareTracker.dll`.

@@ -240,6 +240,7 @@ dependencies = [
     { name = "aiosqlite" },
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic-settings" },
     { name = "sqlalchemy", extra = ["asyncio"] },
@@ -248,7 +249,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "httpx2" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -260,6 +260,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21" },
     { name = "alembic", specifier = ">=1.16" },
     { name = "fastapi", specifier = ">=0.118" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.1" },
     { name = "pydantic-settings", specifier = ">=2.10" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.43" },
@@ -268,7 +269,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28" },
     { name = "httpx2", specifier = ">=2.13.1" },
     { name = "pytest", specifier = ">=8.4" },
     { name = "pytest-asyncio", specifier = ">=1.2" },
