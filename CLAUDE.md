@@ -1,7 +1,9 @@
 # Working rules for Claude
 
-Project context: [README.md](README.md) (what the app does) and
-[docs/technical-design.md](docs/technical-design.md) (how it is built).
+Project context: [README.md](README.md) (what the app does),
+[docs/technical-design.md](docs/technical-design.md) (how it is built) and
+[docs/project-admin.md](docs/project-admin.md) (CI, releases and repository
+decisions, plus open to-dos to bring up with the user once code exists).
 
 ## Branches and pull requests
 
