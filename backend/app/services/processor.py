@@ -7,12 +7,13 @@ import contextlib
 import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.types import utcnow
-from app.models import FuelUp, PaymentSource, Status
+from app.models import FuelUp, PaymentSource, Receipt, Status
 from app.services import notifications
 from app.services.events import EventBus
 from app.services.lubelogger import (
@@ -23,6 +24,7 @@ from app.services.lubelogger import (
     LubeLoggerRejected,
     LubeLoggerUnavailable,
     NewGasRecord,
+    UploadedFile,
 )
 from app.services.runtime_settings import RuntimeSettings
 
@@ -62,6 +64,7 @@ class Processor:
         *,
         gps_field: str,
         address_field: str,
+        receipt_dir: Path,
         retry_delays: tuple[float, ...] = RETRY_DELAYS,
         interval: float = 15,
         clock: Callable[[], datetime] = utcnow,
@@ -72,6 +75,7 @@ class Processor:
         self._lubelogger = lubelogger
         self._gps_field = gps_field
         self._address_field = address_field
+        self._receipt_dir = receipt_dir
         self._retry_delays = retry_delays
         self._interval = interval
         self._clock = clock
@@ -195,6 +199,8 @@ class Processor:
             ):
                 return existing.id
 
+        transaction_id, uploaded = await self._receipt_parts(session, client, fuel_up)
+
         extra_fields = []
         if fuel_up.latitude is not None and fuel_up.longitude is not None:
             extra_fields.append(
@@ -214,7 +220,38 @@ class Processor:
             cost=fuel_up.total_price,
             is_fill_to_full=fuel_up.is_fill_to_full,
             missed_fuel_up=fuel_up.missed_fuel_up,
-            notes=build_notes(fuel_up),
+            notes=build_notes(fuel_up, transaction_id),
             extra_fields=extra_fields,
+            files=[uploaded] if uploaded else [],
         )
         return await client.add_gas_record(fuel_up.vehicle_id, record)
+
+    async def _receipt_parts(
+        self, session: AsyncSession, client: LubeLoggerClient, fuel_up: FuelUp
+    ) -> tuple[str | None, UploadedFile | None]:
+        """For a fuel-up with a receipt: its transaction ID and the PDF uploaded to LubeLogger."""
+        if fuel_up.receipt_id is None:
+            return None, None
+        receipt = await session.get(Receipt, fuel_up.receipt_id)
+        if receipt is None:
+            return None, None
+
+        if receipt.transaction_id:
+            marker = f"PaceDrive Transaction ID: {receipt.transaction_id}"
+            for record in await client.all_gas_records():
+                if marker in record.notes:
+                    raise SendRefused(
+                        f"This receipt (transaction {receipt.transaction_id}) is already in "
+                        f"LubeLogger, as fuel record #{record.id}."
+                    )
+
+        if fuel_up.lubelogger_file:
+            return receipt.transaction_id, UploadedFile(**fuel_up.lubelogger_file)
+        path = self._receipt_dir / receipt.pdf_file if receipt.pdf_file else None
+        if path is None or not path.is_file():
+            return receipt.transaction_id, None
+        uploaded = await client.upload_document(receipt.pdf_name, path.read_bytes())
+        # Kept right away: a later failure must not upload the file a second time
+        fuel_up.lubelogger_file = {"name": uploaded.name, "location": uploaded.location}
+        await session.commit()
+        return receipt.transaction_id, uploaded

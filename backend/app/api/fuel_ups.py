@@ -1,6 +1,6 @@
 """Fuel-ups: create, list, edit, approve and retry."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Annotated, Self
 
@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.api.deps import CurrentUser, ServicesDep, SessionDep
 from app.models import FuelUp, PaymentSource, Status
 from app.services import fuel_ups as service
+from app.services import receipts as receipt_service
 from app.services.fuel_ups import FuelUpError
 from app.services.runtime_settings import RuntimeSettings
 
@@ -116,12 +117,24 @@ class FuelUpOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     editable: bool
-    has_receipt: bool = False
     receipt_id: int | None = None
+    # Waiting for the receipt, until this time (then it fails)
+    waiting_for_receipt: bool = False
+    receipt_deadline: datetime | None = None
 
     @classmethod
     def from_model(cls, fuel_up: FuelUp, runtime: RuntimeSettings) -> "FuelUpOut":
         sending = fuel_up.status == Status.SENDING
+        waiting = (
+            fuel_up.status == Status.PENDING
+            and fuel_up.payment_source == PaymentSource.EMAIL_RECEIPT
+            and fuel_up.receipt_id is None
+        )
+        deadline = (
+            fuel_up.pending_since + timedelta(minutes=runtime.receipt_timeout_minutes)
+            if waiting and fuel_up.pending_since
+            else None
+        )
         return cls(
             id=fuel_up.id,
             vehicle_id=fuel_up.vehicle_id,
@@ -150,6 +163,9 @@ class FuelUpOut(BaseModel):
             created_at=fuel_up.created_at,
             updated_at=fuel_up.updated_at,
             editable=fuel_up.editable,
+            receipt_id=fuel_up.receipt_id,
+            waiting_for_receipt=waiting,
+            receipt_deadline=deadline,
         )
 
 
@@ -162,28 +178,39 @@ async def create_fuel_up(
     body: FuelUpCreate, user: CurrentUser, session: SessionDep, services: ServicesDep
 ) -> FuelUpOut:
     """Create a fuel-up. It is written to LubeLogger in the background."""
-    if body.payment_source != PaymentSource.MANUAL:
-        raise HTTPException(422, "Only manual payment data is supported so far.")
+    fields = {
+        "vehicle_id": body.vehicle_id,
+        "odometer": body.odometer,
+        "fuel_up_time": body.fuel_up_time,
+        "is_fill_to_full": body.is_fill_to_full,
+        "missed_fuel_up": body.missed_fuel_up,
+        "latitude": body.latitude,
+        "longitude": body.longitude,
+    }
     try:
-        fuel_up = await service.create_manual(
-            session,
-            services.context,
-            user,
-            vehicle_id=body.vehicle_id,
-            odometer=body.odometer,
-            fuel_up_time=body.fuel_up_time,
-            is_fill_to_full=body.is_fill_to_full,
-            missed_fuel_up=body.missed_fuel_up,
-            latitude=body.latitude,
-            longitude=body.longitude,
-            fuel_type=body.fuel_type,
-            quantity=body.quantity,
-            total_price=body.total_price,
-        )
+        if body.payment_source == PaymentSource.MANUAL:
+            fuel_up = await service.create_manual(
+                session,
+                services.context,
+                user,
+                **fields,
+                fuel_type=body.fuel_type,
+                quantity=body.quantity,
+                total_price=body.total_price,
+            )
+        else:
+            # The payment data comes from the receipt, so any sent here is ignored
+            fuel_up = await service.create_waiting_for_receipt(
+                session, services.context, user, **fields
+            )
+            await receipt_service.try_match_fuel_up(session, services.receipts, fuel_up)
     except FuelUpError as exc:
+        await session.rollback()
         raise http_error(exc) from exc
     await session.commit()
     services.processor.wake()
+    if services.mail_watcher is not None:
+        services.mail_watcher.check_now()
     return FuelUpOut.from_model(fuel_up, services.runtime)
 
 
@@ -228,10 +255,14 @@ async def update_fuel_up(
             if field in changes and changes[field] is None:
                 del changes[field]
         await service.update(session, services.context, user, fuel_up, changes)
+        if "fuel_up_time" in changes:
+            # A receipt that fits the new time may already be here
+            await receipt_service.try_match_fuel_up(session, services.receipts, fuel_up)
     except FuelUpError as exc:
         await session.rollback()
         raise http_error(exc) from exc
     await session.commit()
+    services.processor.wake()
     return FuelUpOut.from_model(fuel_up, services.runtime)
 
 
@@ -258,8 +289,11 @@ async def retry_fuel_up(
     try:
         fuel_up = await service.get_visible(session, user, fuel_up_id)
         service.retry(services.context, fuel_up)
+        await receipt_service.try_match_fuel_up(session, services.receipts, fuel_up)
     except FuelUpError as exc:
         raise http_error(exc) from exc
     await session.commit()
     services.processor.wake()
+    if services.mail_watcher is not None:
+        services.mail_watcher.check_now()
     return FuelUpOut.from_model(fuel_up, services.runtime)

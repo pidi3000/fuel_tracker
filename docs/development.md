@@ -74,3 +74,9 @@ LUBELOGGER_TEST_URL=http://localhost:8080 uv run pytest tests/test_lubelogger_in
 Create a vehicle first (`POST /api/vehicles/add`). To run LubeLogger from its
 source, build it with the .NET SDK (`dotnet publish -c Release`) and start it
 with `ASPNETCORE_URLS=http://127.0.0.1:8080 dotnet CarCareTracker.dll`.
+
+## Testing against a real mail server
+
+Likewise, `tests/test_imap_integration.py` talks to a real IMAP server and is
+skipped unless `IMAP_TEST_HOST` is set. [GreenMail](https://greenmail-mail-test.github.io/greenmail/)
+is a throwaway server for it; the command is in the test file's docstring.

@@ -33,6 +33,21 @@ class Settings(BaseSettings):
     lubelogger_field_gps: str = "GPS Location"
     lubelogger_field_address: str = "Address"
 
+    # --- mailbox with the Pace Drive receipts (IMAP). Empty host: no mail handling ---
+    imap_host: str = ""
+    imap_port: int = 993
+    imap_ssl: bool = True
+    imap_user: str = ""
+    imap_password: str = ""
+    imap_inbox: str = "INBOX"
+    # Receipts that were used (or ignored) are moved here
+    imap_processed_folder: str = "Processed"
+    # Check the inbox at least this often, even if the server doesn't announce new mail
+    imap_poll_seconds: int = 300
+    # An email is a receipt if it comes from this address and its subject matches
+    receipt_sender: str = "no-reply@connectedfueling.com"
+    receipt_subject_pattern: str = r"\|\s*PACE Pay\s*$"
+
     # --- values an admin can override in the web UI ---
     tz: str = "Europe/Berlin"
     fuel_types: Annotated[list[str], NoDecode] = DEFAULT_FUEL_TYPES
@@ -58,6 +73,10 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return f"sqlite+aiosqlite:///{self.data_dir / 'fuel_tracker.db'}"
+
+    @property
+    def imap_configured(self) -> bool:
+        return bool(self.imap_host.strip() and self.imap_user.strip())
 
     @property
     def lubelogger_configured(self) -> bool:

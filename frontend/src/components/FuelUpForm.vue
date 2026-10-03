@@ -25,6 +25,7 @@ const odometer = ref<string>(props.fuelUp ? String(props.fuelUp.odometer) : '')
 const time = ref(toLocalInput(props.fuelUp ? new Date(props.fuelUp.fuel_up_time) : new Date()))
 const fillToFull = ref(props.fuelUp?.is_fill_to_full ?? true)
 const missed = ref(props.fuelUp?.missed_fuel_up ?? false)
+const paymentSource = ref<'manual' | 'email_receipt'>(props.fuelUp?.payment_source ?? 'manual')
 const fuelType = ref(props.fuelUp?.fuel_type ?? '')
 const quantity = ref(props.fuelUp?.quantity ? String(Number(props.fuelUp.quantity)) : '')
 const price = ref(props.fuelUp?.total_price ?? '')
@@ -87,10 +88,14 @@ function submit() {
     missed_fuel_up: missed.value,
     latitude: location.state.status === 'ok' ? location.state.latitude : null,
     longitude: location.state.status === 'ok' ? location.state.longitude : null,
-    payment_source: 'manual',
-    fuel_type: fuelType.value || null,
-    quantity: quantity.value === '' ? null : quantity.value,
-    total_price: price.value === '' ? null : price.value,
+    payment_source: paymentSource.value,
+    ...(paymentSource.value === 'manual'
+      ? {
+          fuel_type: fuelType.value || null,
+          quantity: quantity.value === '' ? null : quantity.value,
+          total_price: price.value === '' ? null : price.value,
+        }
+      : {}),
   })
 }
 
@@ -183,45 +188,62 @@ const locationText = computed(() => {
     </div>
 
     <h2>Payment</h2>
-    <div class="field">
-      <label for="fuel-type">Fuel type</label>
-      <select id="fuel-type" v-model="fuelType" required>
-        <option value="" disabled>Choose a fuel type</option>
-        <option v-for="type in fuelTypeOptions" :key="type" :value="type">{{ type }}</option>
-      </select>
+    <div v-if="!fuelUp || fuelUp.status === 'failed'" class="field">
+      <label class="check">
+        <input v-model="paymentSource" type="radio" value="email_receipt" />
+        Pace Drive email receipt
+      </label>
+      <label class="check">
+        <input v-model="paymentSource" type="radio" value="manual" /> Enter it manually
+      </label>
     </div>
-    <div class="row">
+
+    <p v-if="paymentSource === 'email_receipt'" class="muted">
+      The fuel type, amount, price and station address are read from the receipt that Pace Drive
+      emails you. It is matched to this fuel-up by its time.
+    </p>
+
+    <template v-else>
       <div class="field">
-        <label for="quantity">Fuel amount</label>
-        <div class="input-suffix">
-          <input
-            id="quantity"
-            v-model="quantity"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            step="any"
-            required
-          />
-          <span>{{ fuel?.volume_unit }}</span>
+        <label for="fuel-type">Fuel type</label>
+        <select id="fuel-type" v-model="fuelType" required>
+          <option value="" disabled>Choose a fuel type</option>
+          <option v-for="type in fuelTypeOptions" :key="type" :value="type">{{ type }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="quantity">Fuel amount</label>
+          <div class="input-suffix">
+            <input
+              id="quantity"
+              v-model="quantity"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="any"
+              required
+            />
+            <span>{{ fuel?.volume_unit }}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="price">Total price</label>
+          <div class="input-suffix">
+            <input
+              id="price"
+              v-model="price"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="any"
+              required
+            />
+            <span>{{ fuel?.currency }}</span>
+          </div>
         </div>
       </div>
-      <div class="field">
-        <label for="price">Total price</label>
-        <div class="input-suffix">
-          <input
-            id="price"
-            v-model="price"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            step="any"
-            required
-          />
-          <span>{{ fuel?.currency }}</span>
-        </div>
-      </div>
-    </div>
+    </template>
 
     <button class="primary" type="submit" :disabled="busy || vehicleId === ''">
       {{ submitLabel }}
