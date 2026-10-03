@@ -1,7 +1,7 @@
 # Technical design
 
 How Fuel Tracker is built. For what it does and why, see the
-[project outline](../README.md).
+[functional outline](functional-outline.md).
 
 ## Overview
 
