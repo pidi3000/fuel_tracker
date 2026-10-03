@@ -197,6 +197,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/receipts/unmatched` | Unmatched receipts |
 | `POST` | `/api/receipts/{id}/complete`, `/ignore` | Turn into a fuel-up / ignore |
 | `GET` | `/api/events` | Live updates (SSE) |
+| `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET`/`PATCH` | `/api/settings` | Effective settings / web UI overrides (admin) |
 | | `/api/users`, `/api/users/{id}/tokens` | User, vehicle access and token management (admin) |
 
@@ -267,15 +268,46 @@ the database or the web UI.
 - **Example** `docker-compose.yml` and `.env.example` are included in the
   repository.
 
+### Versioning and releases
+
+The version number lives in one place: the `VERSION` file in the repository
+root (e.g. `1.2.3`, [semantic versioning](https://semver.org)). Release notes
+live in `CHANGELOG.md`, one section per version:
+
+```markdown
+## 1.2.3
+
+- Fixed ...
+```
+
+The backend reads `VERSION` at start-up and returns it from `GET /api/version`;
+the web UI shows it in the footer. Images built from `main` show the version
+with the commit, e.g. `1.2.3-test+a1b2c3d`.
+
+**Releasing** needs no manual tag or release:
+
+1. A pull request raises the number in `VERSION` and adds the matching section
+   to `CHANGELOG.md`.
+2. The pull request is merged into `main`.
+3. GitHub Actions notices that no tag `v<VERSION>` exists yet, runs the tests,
+   creates the tag and the GitHub release (text taken from the changelog
+   section) and publishes the images.
+
+Pushes to `main` that don't change `VERSION` only publish the `test` image.
+A check on every pull request makes sure `VERSION` is valid and, if it
+changed, that `CHANGELOG.md` has a section for it.
+
+Tag, release and images are all created in one workflow run. This matters
+because tags and releases created by a workflow don't start other workflows.
+
 ### Image publishing
 
-GitHub Actions builds the image and publishes it to the GitHub Container
-Registry (`ghcr.io/pidi3000/fuel_tracker`):
+Images go to the GitHub Container Registry (`ghcr.io/pidi3000/fuel_tracker`):
 
 | Trigger | Tags |
 | --- | --- |
 | Push to `main` | `test` |
-| Release `v1.2.3` | `1.2.3`, `1.2`, `1`, `latest` |
+| Push to `main` with a new version | `1.2.3`, `1.2`, `1`, `latest` (and `test`) |
 
 Images are only published after the tests pass. For production, pin a major
 version (e.g. `:1`) or `:latest`; `:test` always follows `main`.
@@ -294,6 +326,8 @@ backend/
   tests/            # incl. example receipts
 frontend/           # Vue 3 + Vite PWA
 docs/
+VERSION
+CHANGELOG.md
 Dockerfile
 docker-compose.yml
 .env.example
