@@ -35,7 +35,7 @@ Each fuel-up has these fields, entered in the web UI or sent through the API:
 | Field | Notes |
 | --- | --- |
 | Vehicle | Chosen from the vehicles loaded from LubeLogger |
-| Odometer reading | Required. Rejected if it is lower than the vehicle's last reading in LubeLogger |
+| Odometer reading | Required, whole number. Rejected if it is lower than the vehicle's last reading in LubeLogger or in a fuel-up that hasn't been sent to LubeLogger yet |
 | Full fuel-up | Defaults to *yes* |
 | Missed fuel-up | LubeLogger's flag. Defaults to *no* |
 | Date and time | Defaults to *now* |
@@ -51,8 +51,10 @@ LubeLogger, or until it fails.
 
 ### Payment data from the email receipt
 
-1. The server waits for a new email in the connected inbox. It is notified by
-   the mail server as soon as a mail arrives instead of checking periodically.
+1. The server first checks receipts already in the inbox, in case the receipt
+   arrived before the fuel-up was entered. Otherwise it waits for new mail.
+   The mail server notifies it as soon as a mail arrives, so it doesn't need
+   to check periodically.
 2. A receipt matches a fuel-up when its date and time is within a configurable
    window of the fuel-up's time (default: 10 minutes). There is only one user,
    so no two fuel-ups are expected inside that window.
@@ -72,8 +74,10 @@ LubeLogger, or until it fails.
    - Quantity and its unit (e.g. *23.00 L*)
    - Total price and currency (e.g. *54.03 EUR*)
    - Transaction ID, so the same receipt is never used for two fuel-ups
-4. If the receipt's units differ from the configured units, the fuel-up is
-   paused and the user is notified. Automatic unit conversion may come later.
+4. If the receipt's units differ from the configured units, or a value can't
+   be found on the receipt (for example, because Pace changed the layout), the
+   fuel-up is set to **Needs attention** and the user is notified. Nothing is
+   guessed. Automatic unit conversion may come later.
 5. If no matching receipt arrives within the configurable wait time (default:
    60 minutes), the fuel-up is marked **Failed** and the user is notified.
 
@@ -107,9 +111,9 @@ The web UI lists all fuel-ups with their status:
 | Status | Meaning |
 | --- | --- |
 | **Pending** | Waiting for the receipt |
-| **Needs attention** | Waiting for review, or paused because of a unit mismatch |
+| **Needs attention** | Waiting for review, paused because of a unit mismatch, or a receipt value couldn't be read |
 | **Done** | Created in LubeLogger |
-| **Failed** | No receipt arrived in time, or LubeLogger rejected the record |
+| **Failed** | No receipt arrived in time, or LubeLogger rejected the record or stayed unreachable after several retries |
 
 For a failed fuel-up, the user can retry the receipt search or enter the payment
 data manually. Notifications are only sent when something fails or needs
