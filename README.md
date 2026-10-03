@@ -17,7 +17,8 @@ knows (vehicle, odometer reading, location). The server collects the rest and
 then creates the fuel record in LubeLogger.
 
 For how it is built, see the [technical design](docs/technical-design.md);
-for working on the code, see [development](docs/development.md).
+for working on the code, see [development](docs/development.md); the
+Apple Shortcut is described in [shortcut](docs/shortcut.md).
 
 ## Connected systems
 

@@ -27,6 +27,12 @@ export const router = createRouter({
       meta: { public: true, title: 'Sign in' },
     },
     {
+      path: '/new',
+      name: 'new',
+      component: () => import('./views/NewFuelUpView.vue'),
+      meta: { title: 'New fuel-up' },
+    },
+    {
       path: '/',
       name: 'home',
       component: () => import('./views/HomeView.vue'),

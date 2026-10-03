@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 
 import { getJson } from './api'
 import { auth, installSessionExpiryHandler, logout } from './auth'
+import ToastList from './components/ToastList.vue'
 
 const router = useRouter()
 const version = ref<string>()
@@ -33,12 +34,14 @@ async function signOut() {
       <template v-if="auth.user">
         <nav>
           <RouterLink to="/">Fuel-ups</RouterLink>
+          <RouterLink to="/new">New</RouterLink>
           <RouterLink to="/account">Account</RouterLink>
         </nav>
         <button class="link" type="button" @click="signOut">Sign out</button>
       </template>
     </div>
   </header>
+  <ToastList />
   <RouterView />
   <footer class="app-footer">Fuel Tracker {{ version ?? '…' }}</footer>
 </template>

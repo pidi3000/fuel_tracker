@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.models import User
 from app.services import auth as auth_service
+from app.services.container import Services
 
 SESSION_COOKIE = "fuel_tracker_session"
 
@@ -23,8 +24,13 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         yield session
 
 
+def get_services(request: Request) -> Services:
+    return request.app.state.services
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
+ServicesDep = Annotated[Services, Depends(get_services)]
 
 
 def _unauthorized() -> HTTPException:
