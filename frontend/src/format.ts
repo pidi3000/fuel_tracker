@@ -42,3 +42,19 @@ export function formatDate(value: string): string {
 export function formatCoordinates(latitude: number | null, longitude: number | null): string {
   return latitude === null || longitude === null ? '–' : `${latitude}, ${longitude}`
 }
+
+/** A short headline for why a fuel-up needs attention (the API's `attention` code). */
+export function attentionTitle(code: string | null): string {
+  switch (code) {
+    case 'review':
+      return 'Waiting for your review'
+    case 'unit_mismatch':
+      return "Unit or currency doesn't match"
+    case 'unreadable':
+      return "Receipt values couldn't be read"
+    case 'date_fallback':
+      return 'Receipt date taken from the PDF'
+    default:
+      return 'Needs attention'
+  }
+}

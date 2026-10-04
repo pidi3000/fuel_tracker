@@ -6,7 +6,7 @@ import { getJson, patchJson, postJson } from '../api'
 import FuelUpForm from '../components/FuelUpForm.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, onEvent } from '../events'
-import { formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
+import { attentionTitle, formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
 import { showToast } from '../toast'
 import type { FuelUp, Receipt } from '../types'
 
@@ -103,9 +103,12 @@ const paymentLabel = computed(() =>
       <div v-if="error" class="alert error" role="alert">{{ error }}</div>
 
       <div v-if="fuelUp.status === 'needs_attention'" class="alert warn">
-        {{ fuelUp.attention_message }}
+        <strong>{{ attentionTitle(fuelUp.attention) }}</strong
+        ><br />{{ fuelUp.attention_message }}
       </div>
-      <div v-if="fuelUp.status === 'failed'" class="alert error">{{ fuelUp.error_message }}</div>
+      <div v-if="fuelUp.status === 'failed'" class="alert error">
+        <strong>Failed</strong><br />{{ fuelUp.error_message }}
+      </div>
       <div v-if="fuelUp.sending" class="alert info">
         Sending to LubeLogger…
         <template v-if="fuelUp.error_message"> {{ fuelUp.error_message }}</template>
