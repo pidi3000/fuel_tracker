@@ -165,7 +165,10 @@ def start_sending(ctx: Context, fuel_up: FuelUp) -> None:
 def ask_for_review(ctx: Context, fuel_up: FuelUp) -> None:
     fuel_up.status = Status.NEEDS_ATTENTION
     fuel_up.attention = Attention.REVIEW
-    fuel_up.attention_message = "Check the fuel-up, then approve it to send it to LubeLogger."
+    fuel_up.attention_message = (
+        '"Review before sending" is turned on in the settings. '
+        "Check the fuel-up, then approve it to send it to LubeLogger."
+    )
     fuel_up.next_attempt_at = None
     touch(ctx, fuel_up)
 

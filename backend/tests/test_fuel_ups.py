@@ -140,6 +140,7 @@ async def test_review_before_send(api: AppUnderTest) -> None:
     await api.services.runtime.set("review_before_send", True)
     created = await create_fuel_up(api)
     assert created["status"] == "needs_attention" and created["attention"] == "review"
+    assert "Review before sending" in created["attention_message"]
     assert await api.services.processor.process_due() == 0
     assert api.fake.records == []
 

@@ -3,6 +3,15 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
+## Unreleased
+
+### New
+
+- A fuel-up that needs attention now says why, with a short headline in the list and on
+  the fuel-up page (for example "Waiting for your review", because *Review before
+  sending* is turned on, or "Unit or currency doesn't match"). Failed fuel-ups are
+  labelled with their reason in the same way.
+
 ## 0.1.0 - 2026-10-03
 
 ### Breaking changes / upgrade notes

@@ -5,7 +5,14 @@ import { RouterLink } from 'vue-router'
 import { getJson, postJson } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, live, onEvent } from '../events'
-import { formatDate, formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
+import {
+  attentionTitle,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+  formatTime,
+} from '../format'
 import { loadReference, reference } from '../reference'
 import { showToast } from '../toast'
 import type { FuelUp, HistoryRecord, Receipt } from '../types'
@@ -159,6 +166,7 @@ const currency = computed(() => reference.fuel?.currency ?? 'EUR')
             >.
           </div>
           <div v-if="fuelUp.status === 'needs_attention'" class="small warn-text">
+            <strong>{{ attentionTitle(fuelUp.attention) }}:</strong>
             {{ fuelUp.attention_message }}
           </div>
           <div v-if="fuelUp.error_message" class="small error-text">
