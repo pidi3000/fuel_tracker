@@ -10,6 +10,9 @@ details are linked from each release on GitHub.
 - An Apple Shortcut adds a fuel-up from your iPhone: it asks for the vehicle, the odometer
   reading and how you pay, and sends your location. It is `shortcut/Fuel Tracker.shortcut`;
   `docs/shortcut.md` explains how to sign (on a Mac) and install it.
+- The app looks once a day whether a newer image of itself is available and shows it on the
+  settings page, with a notification for the admins. A release image only looks for newer
+  releases, and a test image only for a newer test image. Turn it off with `UPDATE_CHECK=false`.
 - When a receipt turns up again (the same email twice, or the same receipt in another email),
   you now get a notification. It is not used again, and its email is flagged on the mail
   server before it is moved to the processed folder.

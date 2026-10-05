@@ -35,6 +35,7 @@ from app.services.receipts import (
     rematch_waiting,
 )
 from app.services.runtime_settings import RuntimeSettings
+from app.services.updates import UpdateChecker, announce_update
 from app.services.vehicles import VehicleDirectory
 
 logger = logging.getLogger("fuel_tracker")
@@ -129,6 +130,8 @@ def create_app(
                 data_dir=settings.data_dir,
             ),
         )
+        if settings.update_check:
+            services.updates = UpdateChecker(settings.update_check_image, get_version())
         app.state.services = services
 
         async def match_and_expire() -> None:
@@ -150,8 +153,23 @@ def create_app(
                 await clean_up(session, runtime, events, settings.data_dir / "receipts")
                 await session.commit()
 
+        next_update_check = [float("-inf")]  # monotonic time of the next look for a newer image
+
+        async def look_for_updates() -> None:
+            checker = services.updates
+            if checker is None or time.monotonic() < next_update_check[0]:
+                return
+            status = await checker.check()
+            # Once a day; again in an hour if the registry couldn't be asked
+            wait = 3600 if status.error else 86400
+            next_update_check[0] = time.monotonic() + wait
+            async with sessionmaker() as session:
+                if await announce_update(session, events, status):
+                    await session.commit()
+
         processor.periodic_jobs.append(match_and_expire)
         processor.periodic_jobs.append(clean)
+        processor.periodic_jobs.append(look_for_updates)
 
         tasks: list[asyncio.Task] = []
         if settings.background_workers:

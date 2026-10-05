@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 
-import { deleteJson, getJson, putJson } from '../api'
+import { deleteJson, getJson, postJson, putJson } from '../api'
+import { formatDateTime } from '../format'
 import { showToast } from '../toast'
 import type {
   ConnectionStatus,
@@ -9,12 +10,15 @@ import type {
   Setting,
   SettingsResponse,
   StatusResponse,
+  UpdateInfo,
 } from '../types'
 
 const settings = ref<Setting[]>([])
 const environment = ref<EnvironmentInfo | null>(null)
 const status = ref<StatusResponse | null>(null)
 const checking = ref(false)
+const update = ref<UpdateInfo | null>(null)
+const checkingUpdate = ref(false)
 const error = ref('')
 // What is typed in each field, as text (lists as "A, B", booleans as true/false)
 const drafts = reactive<Record<string, string | boolean>>({})
@@ -54,6 +58,25 @@ async function check() {
     error.value = (e as Error).message
   } finally {
     checking.value = false
+  }
+}
+
+async function loadUpdate() {
+  try {
+    update.value = await getJson<UpdateInfo>('/update')
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
+
+async function checkUpdate() {
+  checkingUpdate.value = true
+  try {
+    update.value = await postJson<UpdateInfo>('/update/check')
+  } catch (e) {
+    error.value = (e as Error).message
+  } finally {
+    checkingUpdate.value = false
   }
 }
 
@@ -107,6 +130,7 @@ const stateKind: Record<ConnectionStatus['state'], string> = {
 onMounted(() => {
   void load()
   void check()
+  void loadUpdate()
 })
 </script>
 
@@ -137,6 +161,67 @@ onMounted(() => {
         </tbody>
       </table>
       <p v-else class="muted">Checking…</p>
+    </section>
+
+    <section v-if="update" class="card">
+      <div class="item-head">
+        <h2>Updates</h2>
+        <button v-if="update.enabled" type="button" :disabled="checkingUpdate" @click="checkUpdate">
+          Check now
+        </button>
+      </div>
+      <p v-if="!update.enabled" class="muted">
+        Looking for updates is turned off (<code>UPDATE_CHECK=false</code>). This is version
+        {{ update.current }}.
+      </p>
+      <template v-else>
+        <table class="kv">
+          <tbody>
+            <tr>
+              <th>This version</th>
+              <td>{{ update.current }}</td>
+            </tr>
+            <tr v-if="update.channel === 'dev'">
+              <th>Looking for</th>
+              <td class="muted">
+                Nothing: this is a development or local build, which can't be compared.
+              </td>
+            </tr>
+            <template v-else>
+              <tr>
+                <th>Looking for</th>
+                <td>
+                  {{
+                    update.channel === 'test'
+                      ? 'A newer test image (this is a test image)'
+                      : 'A newer release image'
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <th>Newest</th>
+                <td>
+                  <template v-if="update.latest">{{ update.latest }}</template>
+                  <span v-else class="muted">not known yet</span>
+                  <span v-if="update.available" class="badge warn">Update available</span>
+                  <span v-else-if="update.latest && !update.error" class="badge ok"
+                    >Up to date</span
+                  >
+                </td>
+              </tr>
+              <tr v-if="update.checked_at">
+                <th>Last checked</th>
+                <td>{{ formatDateTime(update.checked_at) }}</td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div v-if="update.error" class="alert error" role="alert">{{ update.error }}</div>
+        <p v-if="update.available" class="small">
+          To update, pull the new image and restart:
+          <code>docker compose pull &amp;&amp; docker compose up -d</code>
+        </p>
+      </template>
     </section>
 
     <section class="card">

@@ -156,6 +156,16 @@ export interface ConnectionStatus {
   message: string
 }
 
+export interface UpdateInfo {
+  enabled: boolean
+  channel: 'release' | 'test' | 'dev' | null
+  current: string
+  latest: string | null
+  available: boolean
+  checked_at: string | null
+  error: string | null
+}
+
 export interface StatusResponse {
   lubelogger: ConnectionStatus
   mailbox: ConnectionStatus
