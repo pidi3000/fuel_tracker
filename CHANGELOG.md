@@ -7,6 +7,12 @@ details are linked from each release on GitHub.
 
 ### New
 
+- On a phone and other narrow screens, the pages are in a menu behind the menu button in the
+  header (it also shows how many notifications are unread). The separate *New* link is gone:
+  *New fuel-up* is the button on the start page. On a wide screen the pages stay in the
+  header.
+- A button in the header switches between the light and the dark theme. Until you use it, the
+  app follows your device; your choice is remembered in the browser.
 - The history has its own page (*History* in the menu). On the start page, the receipts
   without a fuel-up are now at the top, above the fuel-ups in progress.
 
