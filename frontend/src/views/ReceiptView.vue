@@ -4,7 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { getJson, postJson } from '../api'
 import FuelUpForm from '../components/FuelUpForm.vue'
-import { formatDateTime, formatMoney, formatNumber } from '../format'
+import { addressMapUrl, formatDateTime, formatMoney, formatNumber } from '../format'
 import { showToast } from '../toast'
 import type { FuelUp, Receipt } from '../types'
 
@@ -70,7 +70,16 @@ async function ignore() {
           <tbody>
             <tr>
               <th>Station</th>
-              <td>{{ receipt.address ?? receipt.station ?? '–' }}</td>
+              <td>
+                <a
+                  v-if="receipt.address"
+                  :href="addressMapUrl(receipt.address)"
+                  target="_blank"
+                  rel="noopener"
+                  >{{ receipt.address }}</a
+                >
+                <template v-else>{{ receipt.station ?? '–' }}</template>
+              </td>
             </tr>
             <tr>
               <th>Time</th>
