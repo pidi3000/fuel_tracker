@@ -7,6 +7,7 @@ details are linked from each release on GitHub.
 
 ### New
 
+- The history can be filtered by vehicle.
 - A fuel-up that needs attention now says why, with a short headline in the list and on
   the fuel-up page (for example "Waiting for your review", because *Review before
   sending* is turned on, or "Unit or currency doesn't match"). Failed fuel-ups are
