@@ -1,0 +1,80 @@
+// The Apple Shortcut that adds a fuel-up. Source for the Cherri compiler (cherrilang.org);
+// build it with `python3 shortcut/build.py` (see docs/shortcut.md).
+
+#include 'actions/text'
+#include 'actions/location'
+#include 'actions/web'
+
+#define name Fuel Tracker
+#define glyph fuelstation
+#define color green
+
+// Asked when the Shortcut is imported
+#question serverQ "Address of your Fuel Tracker server, for example https://fuel.example.com (no slash at the end)" "https://"
+#question tokenQ "Your API token (create one in Fuel Tracker under Account)" ""
+
+const server = text(serverQ)
+const token = text(tokenQ)
+
+// Where you are (iOS asks for permission the first time)
+const here = getCurrentLocation()
+const latitude = getLocationDetail(here, "Latitude")
+const longitude = getLocationDetail(here, "Longitude")
+
+// Which vehicle: the names to choose from, then the id of the chosen one
+const vehicles = downloadURL("{server}/api/vehicles", {"Authorization": "Bearer {token}"})
+@names = []
+for vehicle in vehicles {
+    @names += "{@vehicle['name']}"
+}
+@chosen = chooseFromList(@names, "Vehicle")
+@chosenName = "{@chosen}"
+@vehicleId = 0
+for vehicle in vehicles {
+    @candidate = "{@vehicle['name']}"
+    if @candidate == @chosenName {
+        @vehicleId = @vehicle['id']
+    }
+}
+
+// The odometer reading, with the last one as a hint
+const last = downloadURL("{server}/api/vehicles/{@vehicleId}/odometer", {"Authorization": "Bearer {token}"})
+@lastOdometer = last['odometer']
+@odometer = prompt("Odometer reading (last: {@lastOdometer})", "Number")
+
+// Send it. The numbers in the bodies are made real JSON numbers by build.py
+@response = ""
+menu "How do you pay?" {
+    item "Pace Drive email receipt":
+        @response = jsonRequest("{server}/api/fuel-ups", "POST", {
+            "vehicle_id": "{@vehicleId}",
+            "odometer": "{@odometer}",
+            "latitude": "{latitude}",
+            "longitude": "{longitude}",
+            "payment_source": "email_receipt"
+        }, {"Authorization": "Bearer {token}"})
+    item "Manual":
+        const reference = downloadURL("{server}/api/fuel-types", {"Authorization": "Bearer {token}"})
+        @fuelTypes = reference['fuel_types']
+        const fuelType = chooseFromList(@fuelTypes, "Fuel type")
+        @quantity = prompt("Amount of fuel ({reference['volume_unit']})", "Number")
+        @price = prompt("Total price ({reference['currency']})", "Number")
+        @response = jsonRequest("{server}/api/fuel-ups", "POST", {
+            "vehicle_id": "{@vehicleId}",
+            "odometer": "{@odometer}",
+            "latitude": "{latitude}",
+            "longitude": "{longitude}",
+            "payment_source": "manual",
+            "fuel_type": "{fuelType}",
+            "quantity": "{@quantity}",
+            "total_price": "{@price}"
+        }, {"Authorization": "Bearer {token}"})
+}
+
+// Created, or why not (the server explains in `detail`)
+@problem = @response['detail']
+if @problem {
+    alert("{@problem}", "Fuel-up not saved")
+} else {
+    alert("{@response['vehicle_name']}, {@response['odometer']}\n{@response['attention_message']}", "Fuel-up created")
+}
