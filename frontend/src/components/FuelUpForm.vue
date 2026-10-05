@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { getJson } from '../api'
-import { formatNumber, fromLocalInput, toLocalInput } from '../format'
+import { coordinatesMapUrl, formatNumber, fromLocalInput, toLocalInput } from '../format'
 import { useGeolocation } from '../geolocation'
 import { loadReference, reference, vehicleLabel } from '../reference'
 import type { FuelUp } from '../types'
@@ -126,6 +126,13 @@ function submit() {
   emit('submit', payload)
 }
 
+const locationUrl = computed(() => {
+  const s = location.state
+  return s.status === 'ok' && s.latitude !== null && s.longitude !== null
+    ? coordinatesMapUrl(s.latitude, s.longitude)
+    : null
+})
+
 const locationText = computed(() => {
   const s = location.state
   switch (s.status) {
@@ -194,7 +201,10 @@ const locationText = computed(() => {
 
     <div class="field">
       <span class="label">Location</span>
-      <span :class="{ muted: location.state.status !== 'ok' }">{{ locationText }}</span>
+      <a v-if="locationUrl" :href="locationUrl" target="_blank" rel="noopener">{{
+        locationText
+      }}</a>
+      <span v-else :class="{ muted: location.state.status !== 'ok' }">{{ locationText }}</span>
       <div class="actions">
         <button
           type="button"
