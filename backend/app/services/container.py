@@ -12,6 +12,7 @@ from app.services.mail import MailWatcher
 from app.services.processor import Processor
 from app.services.receipts import ReceiptContext
 from app.services.runtime_settings import RuntimeSettings
+from app.services.updates import UpdateChecker
 from app.services.vehicles import VehicleDirectory
 
 
@@ -26,6 +27,7 @@ class Services:
     processor: Processor
     receipts: ReceiptContext
     mail_watcher: MailWatcher | None = None
+    updates: UpdateChecker | None = None
 
     @property
     def context(self) -> Context:
