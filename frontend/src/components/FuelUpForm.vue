@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { getJson } from '../api'
-import { formatNumber, fromLocalInput, toLocalInput } from '../format'
+import { formatNumber, parseLocalInput, toLocalInput } from '../format'
 import { useGeolocation } from '../geolocation'
 import { loadReference, reference, vehicleLabel } from '../reference'
 import type { FuelUp } from '../types'
@@ -112,7 +112,7 @@ function submit() {
     longitude: located ? location.state.longitude : null,
   }
   if (props.variant === 'full') {
-    payload.fuel_up_time = fromLocalInput(time.value)
+    payload.fuel_up_time = parseLocalInput(time.value)?.toISOString()
     // When editing, the payment source is only sent if it changes
     if (!editing.value || paymentSource.value !== originalSource) {
       payload.payment_source = paymentSource.value
@@ -125,6 +125,16 @@ function submit() {
   }
   emit('submit', payload)
 }
+
+// The browser blocks the form and shows this while the date and time isn't valid
+const timeInput = ref<HTMLInputElement | null>(null)
+function checkTime() {
+  timeInput.value?.setCustomValidity(
+    parseLocalInput(time.value) ? '' : 'Use the format YYYY-MM-DD HH:MM, e.g. 2026-10-05 17:08.',
+  )
+}
+watch(time, checkTime)
+onMounted(checkTime)
 
 const locationText = computed(() => {
   const s = location.state
@@ -181,7 +191,15 @@ const locationText = computed(() => {
 
     <div v-if="variant === 'full'" class="field">
       <label for="time">Date and time</label>
-      <input id="time" v-model="time" type="datetime-local" required />
+      <input
+        id="time"
+        ref="timeInput"
+        v-model="time"
+        type="text"
+        placeholder="YYYY-MM-DD HH:MM"
+        autocomplete="off"
+        required
+      />
     </div>
 
     <div class="field">

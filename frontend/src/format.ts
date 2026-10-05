@@ -13,30 +13,57 @@ export function formatMoney(value: string | null, currency: string): string {
   })
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** Dates are shown as ISO 8601 (2026-09-23, 17:08), whatever language the browser uses. */
+function isoDate(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function isoTime(date: Date): string {
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export function formatDateTime(value: string | null): string {
   if (!value) return '–'
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-/** Value for an <input type="datetime-local"> (local time, to the minute). */
-export function toLocalInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-export function fromLocalInput(value: string): string {
-  return new Date(value).toISOString()
+  const date = new Date(value)
+  return `${isoDate(date)} ${isoTime(date)}`
 }
 
 export function formatTime(value: string | null): string {
   if (!value) return '–'
-  return new Date(value).toLocaleTimeString(undefined, { timeStyle: 'short' })
+  return isoTime(new Date(value))
 }
 
-/** A date as the API sends it ("2026-09-23"), without shifting it by the time zone. */
+/** A date as the API sends it ("2026-09-23"); already ISO, so it is shown as it is. */
 export function formatDate(value: string): string {
-  const [year, month, day] = value.split('-').map(Number)
-  return new Date(year!, month! - 1, day).toLocaleDateString(undefined, { dateStyle: 'medium' })
+  return value.slice(0, 10)
+}
+
+/** The text in the date and time input: local time, "2026-09-23 17:08". */
+export function toLocalInput(date: Date): string {
+  return `${isoDate(date)} ${isoTime(date)}`
+}
+
+/** Reads the text of the date and time input. Returns null if it isn't a real date and time. */
+export function parseLocalInput(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/.exec(value.trim())
+  if (!match) return null
+  const [year, month, day, hour, minute] = match.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+  ]
+  const date = new Date(year, month - 1, day, hour, minute)
+  const real =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day &&
+    date.getHours() === hour &&
+    date.getMinutes() === minute
+  return real ? date : null
 }
 
 export function formatCoordinates(latitude: number | null, longitude: number | null): string {

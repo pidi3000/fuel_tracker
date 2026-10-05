@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import { deleteJson, getJson, postJson } from '../api'
 import { auth } from '../auth'
+import { formatDateTime } from '../format'
 import type { ApiToken, ApiTokenCreated } from '../types'
 
 const tokens = ref<ApiToken[]>([])
@@ -60,7 +61,7 @@ async function changePassword() {
 }
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : 'never'
+  return value ? formatDateTime(value) : 'never'
 }
 </script>
 
