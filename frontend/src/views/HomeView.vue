@@ -235,6 +235,17 @@ const currency = computed(() => reference.fuel?.currency ?? 'EUR')
               {{ formatMoney(record.cost, currency) }}
             </div>
           </div>
+          <div v-if="record.files.length" class="small">
+            <template v-for="(file, index) in record.files" :key="index">
+              <template v-if="index"> · </template>
+              <a
+                :href="`/api/history/${record.vehicle_id}/${record.id}/files/${index}`"
+                target="_blank"
+                rel="noopener"
+                >{{ file.name }}</a
+              >
+            </template>
+          </div>
           <div v-if="record.address" class="small muted">{{ record.address }}</div>
         </li>
       </ul>

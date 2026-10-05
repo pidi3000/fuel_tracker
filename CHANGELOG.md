@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### New
 
+- Files attached to a record in LubeLogger, such as the receipt, are linked in the history
+  and open straight from Fuel Tracker.
 - A fuel-up that needs attention now says why, with a short headline in the list and on
   the fuel-up page (for example "Waiting for your review", because *Review before
   sending* is turned on, or "Unit or currency doesn't match"). Failed fuel-ups are
