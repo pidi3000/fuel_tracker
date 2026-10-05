@@ -91,7 +91,12 @@ export function coordinatesMapUrl(latitude: number, longitude: number): string {
   return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`
 }
 
-/** An OpenStreetMap search for a postal address, e.g. the station address on a receipt. */
+/**
+ * An OpenStreetMap search for the postal address on a receipt ("Station, Street 1, 12345 Town").
+ * The station name at the start is left out, because OpenStreetMap finds nothing with it.
+ */
 export function addressMapUrl(address: string): string {
-  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`
+  const parts = address.split(',').map((part) => part.trim())
+  const postal = parts.length > 2 ? parts.slice(1) : parts
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(postal.join(', '))}`
 }
