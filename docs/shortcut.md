@@ -42,8 +42,8 @@ Without a Mac, build it by hand:
    again for *Longitude*, each into a variable.
 3. *Get Contents of URL*: `Server`/api/vehicles, header `Authorization` with
    `Bearer ` and `Token`.
-4. *Repeat with Each* vehicle: *Get Dictionary Value* `name`, *Add to Variable*
-   `Names`. Then *Choose from List* `Names`.
+4. *Repeat with Each* vehicle: *Get Dictionary from Input*, *Get Dictionary
+   Value* `name`, *Add to Variable* `Names`. Then *Choose from List* `Names`.
 5. *Repeat with Each* vehicle again: *If* its `name` is the choice, *Get
    Dictionary Value* `id` into `Vehicle ID`.
 6. *Ask for Input* of type *Number* for the odometer reading.
@@ -55,8 +55,8 @@ Without a Mac, build it by hand:
    `vehicle_id`, `odometer`, `latitude`, `longitude`, `quantity` and
    `total_price` to *Number*, not *Text*: a text value carries the decimal
    comma of a European phone, which the server rejects.
-9. *Get Dictionary Value* `detail` of the answer. *If* it has any value, *Show
-   Alert* with it, otherwise show *Fuel-up created*.
+9. *Get Dictionary Value* `id` of the answer. *If* it has a value, show *Fuel-up
+   created*; otherwise *Show Alert* with the answer's `detail`.
 
 ## Changing the Shortcut
 

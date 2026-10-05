@@ -25,22 +25,28 @@ const longitude = getLocationDetail(here, "Longitude")
 const vehicles = downloadURL("{server}/api/vehicles", {"Authorization": "Bearer {token}"})
 @names = []
 for vehicle in vehicles {
-    @names += "{@vehicle['name']}"
+    const listed = getDictionary(@vehicle)
+    const vehicleName = getValue(listed, "name")
+    @names += vehicleName
 }
 @chosen = chooseFromList(@names, "Vehicle")
 @chosenName = "{@chosen}"
 @vehicleId = 0
 for vehicle in vehicles {
-    @candidate = "{@vehicle['name']}"
+    const entry = getDictionary(@vehicle)
+    const candidateName = getValue(entry, "name")
+    @candidate = "{candidateName}"
     if @candidate == @chosenName {
-        @vehicleId = @vehicle['id']
+        const candidateId = getValue(entry, "id")
+        @vehicleId = candidateId
     }
 }
 
 // The odometer reading, with the last one as a hint
 const last = downloadURL("{server}/api/vehicles/{@vehicleId}/odometer", {"Authorization": "Bearer {token}"})
-@lastOdometer = last['odometer']
-@odometer = prompt("Odometer reading (last: {@lastOdometer})", "Number")
+const lastReading = getDictionary(last)
+const lastOdometer = getValue(lastReading, "odometer")
+@odometer = prompt("Odometer reading (last: {lastOdometer})", "Number")
 
 // Send it. The numbers in the bodies are made real JSON numbers by build.py
 @response = ""
@@ -55,10 +61,13 @@ menu "How do you pay?" {
         }, {"Authorization": "Bearer {token}"})
     item "Manual":
         const reference = downloadURL("{server}/api/fuel-types", {"Authorization": "Bearer {token}"})
-        @fuelTypes = reference['fuel_types']
-        const fuelType = chooseFromList(@fuelTypes, "Fuel type")
-        @quantity = prompt("Amount of fuel ({reference['volume_unit']})", "Number")
-        @price = prompt("Total price ({reference['currency']})", "Number")
+        const fuel = getDictionary(reference)
+        const fuelTypes = getValue(fuel, "fuel_types")
+        const volumeUnit = getValue(fuel, "volume_unit")
+        const currency = getValue(fuel, "currency")
+        const fuelType = chooseFromList(fuelTypes, "Fuel type")
+        @quantity = prompt("Amount of fuel ({volumeUnit})", "Number")
+        @price = prompt("Total price ({currency})", "Number")
         @response = jsonRequest("{server}/api/fuel-ups", "POST", {
             "vehicle_id": "{@vehicleId}",
             "odometer": "{@odometer}",
@@ -71,10 +80,19 @@ menu "How do you pay?" {
         }, {"Authorization": "Bearer {token}"})
 }
 
-// Created, or why not (the server explains in `detail`)
-@problem = @response['detail']
-if @problem {
-    alert("{@problem}", "Fuel-up not saved")
+// Created (the server returns the fuel-up), or why not (it explains in `detail`)
+const answer = getDictionary(@response)
+const createdId = getValue(answer, "id")
+if createdId {
+    const savedVehicle = getValue(answer, "vehicle_name")
+    const savedOdometer = getValue(answer, "odometer")
+    const savedNote = getValue(answer, "attention_message")
+    alert("{savedVehicle}, {savedOdometer}\n{savedNote}", "Fuel-up created")
 } else {
-    alert("{@response['vehicle_name']}, {@response['odometer']}\n{@response['attention_message']}", "Fuel-up created")
+    const problem = getValue(answer, "detail")
+    if problem {
+        alert("{problem}", "Fuel-up not saved")
+    } else {
+        alert("{@response}", "Fuel-up not saved")
+    }
 }
