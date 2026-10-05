@@ -7,6 +7,9 @@ details are linked from each release on GitHub.
 
 ### New
 
+- An Apple Shortcut adds a fuel-up from your iPhone: it asks for the vehicle, the odometer
+  reading and how you pay, and sends your location. It is `shortcut/Fuel Tracker.shortcut`;
+  `docs/shortcut.md` explains how to sign (on a Mac) and install it.
 - The app looks once a day whether a newer image of itself is available and shows it on the
   settings page, with a notification for the admins. A release image only looks for newer
   releases, and a test image only for a newer test image. Turn it off with `UPDATE_CHECK=false`.
