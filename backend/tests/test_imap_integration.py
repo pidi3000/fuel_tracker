@@ -82,7 +82,9 @@ def test_receipt_email_round_trip() -> None:
     other.connect()
     try:
         other._client.select_folder("Processed-test")
-        assert other._client.search("ALL"), "the moved email should be in the processed folder"
+        ours = ["HEADER", "Message-ID", message_id]
+        assert other._client.search(ours), "the moved email should be in the processed folder"
+        assert other._client.search(["SEEN", *ours]), "the moved email should be marked as read"
     finally:
         other.close()
 

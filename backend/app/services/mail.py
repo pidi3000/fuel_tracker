@@ -58,7 +58,8 @@ class Mailbox(Protocol):
     def fetch(self, uid: int) -> bytes:
         """The whole email."""
 
-    def move(self, uid: int, folder: str) -> None: ...
+    def move(self, uid: int, folder: str) -> None:
+        """Mark the email as read and move it to `folder`."""
 
     def wait(self, seconds: float, interrupt: threading.Event) -> None:
         """Wait until new mail arrives, `seconds` have passed or `interrupt` is set."""
@@ -131,7 +132,15 @@ class ImapMailbox:
         return next(v for k, v in data[uid].items() if k.startswith(b"BODY[]"))
 
     def move(self, uid: int, folder: str) -> None:
+        """Mark the email as read and move it to `folder`."""
+        from imapclient import SEEN
+        from imapclient.exceptions import IMAPClientError
+
         client = self._client
+        try:
+            client.add_flags([uid], [SEEN])  # the flag goes along to the other folder
+        except IMAPClientError:
+            logger.warning("Couldn't mark email %s as read; moving it anyway.", uid)
         if client.has_capability("MOVE"):
             client.move([uid], folder)
         else:

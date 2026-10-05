@@ -88,6 +88,7 @@ async def test_receipt_arrives_after_the_fuel_up(api: AppUnderTest) -> None:
     mailbox = FakeMailbox()
     assert await deliver(api, mailbox, build_email(pdf=receipt_pdf())) == 1
     assert mailbox.moved == [(1, "Processed")]
+    assert mailbox.marked_read == [1]
 
     matched = await get_fuel_up(api, created["id"])
     assert matched["status"] == "pending" and matched["sending"] is True

@@ -88,8 +88,8 @@ LubeLogger, or until it fails.
    guessed. Automatic unit conversion may come later.
 5. If no matching receipt arrives within the configurable wait time (default:
    60 minutes), the fuel-up is marked **Failed** and the user is notified.
-6. Once a receipt has been used or ignored, its email is moved to a separate,
-   configurable folder (default: *Processed*). The inbox then only holds
+6. Once a receipt has been used or ignored, its email is marked as read and
+   moved to a separate, configurable folder (default: *Processed*). The inbox then only holds
    receipts that haven't been dealt with yet.
 
 ### Receipts without a fuel-up

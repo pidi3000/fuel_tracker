@@ -161,7 +161,8 @@ For each new email:
    (e.g. *Your receipt from Wednesday, September 23, 2026 | PACE Pay*). Other
    emails are left alone.
 2. Extract the receipt data from the PDF (below) and store it.
-3. **Move the email** to the processed folder (created if missing).
+3. **Mark the email as read and move it** to the processed folder (created if
+   missing).
 4. Match it to a pending fuel-up, or list it as unmatched.
 
 The email is moved as soon as the receipt is stored. From then on, the stored
