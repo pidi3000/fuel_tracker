@@ -9,6 +9,8 @@ details are linked from each release on GitHub.
 
 - Dates and times are shown in ISO format (2026-10-05, 17:08), whatever language the browser
   uses, and the date and time of a new fuel-up is typed in that format.
+- The station address from a receipt is now a link that opens it on OpenStreetMap, like the
+  coordinates (on the fuel-up page, the receipt page and in the history).
 - A fuel-up that needs attention now says why, with a short headline in the list and on
   the fuel-up page (for example "Waiting for your review", because *Review before
   sending* is turned on, or "Unit or currency doesn't match"). Failed fuel-ups are

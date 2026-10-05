@@ -6,7 +6,14 @@ import { getJson, patchJson, postJson } from '../api'
 import FuelUpForm from '../components/FuelUpForm.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, onEvent } from '../events'
-import { attentionTitle, formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
+import {
+  addressMapUrl,
+  attentionTitle,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+  formatTime,
+} from '../format'
 import { showToast } from '../toast'
 import type { FuelUp, Receipt } from '../types'
 
@@ -215,7 +222,11 @@ const paymentLabel = computed(() =>
             </tr>
             <tr v-if="fuelUp.address">
               <th>Station</th>
-              <td>{{ fuelUp.address }}</td>
+              <td>
+                <a :href="addressMapUrl(fuelUp.address)" target="_blank" rel="noopener">{{
+                  fuelUp.address
+                }}</a>
+              </td>
             </tr>
             <tr v-if="receipt">
               <th>Receipt</th>

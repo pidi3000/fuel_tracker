@@ -85,3 +85,8 @@ export function attentionTitle(code: string | null): string {
       return 'Needs attention'
   }
 }
+
+/** An OpenStreetMap search for a postal address, e.g. the station address on a receipt. */
+export function addressMapUrl(address: string): string {
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`
+}
