@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import email
+import enum
 import logging
 import re
 import threading
@@ -58,8 +59,8 @@ class Mailbox(Protocol):
     def fetch(self, uid: int) -> bytes:
         """The whole email."""
 
-    def move(self, uid: int, folder: str) -> None:
-        """Mark the email as read and move it to `folder`."""
+    def move(self, uid: int, folder: str, *, flagged: bool = False) -> None:
+        """Mark the email as read (and flagged, if asked) and move it to `folder`."""
 
     def wait(self, seconds: float, interrupt: threading.Event) -> None:
         """Wait until new mail arrives, `seconds` have passed or `interrupt` is set."""
@@ -131,14 +132,15 @@ class ImapMailbox:
         data = self._client.fetch([uid], ["BODY.PEEK[]"])
         return next(v for k, v in data[uid].items() if k.startswith(b"BODY[]"))
 
-    def move(self, uid: int, folder: str) -> None:
-        """Mark the email as read and move it to `folder`."""
-        from imapclient import SEEN
+    def move(self, uid: int, folder: str, *, flagged: bool = False) -> None:
+        """Mark the email as read (and flagged, if asked) and move it to `folder`."""
+        from imapclient import FLAGGED, SEEN
         from imapclient.exceptions import IMAPClientError
 
         client = self._client
         try:
-            client.add_flags([uid], [SEEN])  # the flag goes along to the other folder
+            # The flags go along to the other folder
+            client.add_flags([uid], [SEEN, FLAGGED] if flagged else [SEEN])
         except IMAPClientError:
             logger.warning("Couldn't mark email %s as read; moving it anyway.", uid)
         if client.has_capability("MOVE"):
@@ -183,6 +185,12 @@ def pdf_attachments(message: EmailMessage) -> list[tuple[str, bytes]]:
     return found
 
 
+class Outcome(enum.StrEnum):
+    LEFT = "left"  # not handled; the email stays in the inbox
+    DONE = "done"  # stored (and matched); the email can be moved away
+    DUPLICATE = "duplicate"  # a receipt that was received before; move it, but flag it
+
+
 class ReceiptMailHandler:
     """What happens to one receipt email (on the app's event loop)."""
 
@@ -196,8 +204,8 @@ class ReceiptMailHandler:
         self._ctx = ctx
         self._on_change = on_change
 
-    async def handle(self, raw: bytes, header_message_id: str | None) -> bool:
-        """Store the receipt and match it. Returns True if the email can be moved away."""
+    async def handle(self, raw: bytes, header_message_id: str | None) -> Outcome:
+        """Store the receipt and match it. Says what is to be done with the email."""
         message = email.message_from_bytes(raw, policy=policy.default)
         subject = str(message["Subject"] or "")
         message_id = receipt_service.message_id_of(
@@ -206,12 +214,15 @@ class ReceiptMailHandler:
         pdfs = pdf_attachments(message)
         if not pdfs:
             logger.warning("Email %r looks like a receipt but has no PDF attached", subject)
-            return False
+            return Outcome.LEFT
 
         stored_ids: list[int] = []
         async with self._sessionmaker() as session:
             if await receipt_service.find_by_message_id(session, message_id):
-                return True  # stored earlier, only the move was missing
+                # Stored earlier: the same email again, or only the move was missing
+                await self._announce_duplicate(session, subject)
+                await session.commit()
+                return Outcome.DUPLICATE
             for index, (name, data) in enumerate(pdfs):
                 receipt = await receipt_service.store_receipt(
                     session,
@@ -222,7 +233,7 @@ class ReceiptMailHandler:
                     pdf_name=name,
                 )
                 if receipt is None:
-                    continue
+                    continue  # this receipt was received before
                 stored_ids.append(receipt.id)
                 if receipt.parse_error:
                     await notifications.notify(
@@ -233,9 +244,13 @@ class ReceiptMailHandler:
                         message=f"{subject}: {receipt.parse_error} Ignore it in the receipts list "
                         "or log the fuel-up by hand.",
                     )
+            if not stored_ids:
+                await self._announce_duplicate(session, subject)
             await session.commit()
         for receipt_id in stored_ids:
             self._ctx.events.publish("receipt", id=receipt_id)
+        if not stored_ids:
+            return Outcome.DUPLICATE
 
         # Matching has its own transaction: a problem there must not undo the stored receipt.
         # (Waiting fuel-ups are also matched again regularly.)
@@ -249,7 +264,19 @@ class ReceiptMailHandler:
         except Exception:
             logger.exception("Matching a new receipt failed")
         self._on_change()
-        return True
+        return Outcome.DONE
+
+    async def _announce_duplicate(self, session: AsyncSession, subject: str) -> None:
+        await notifications.notify(
+            session,
+            self._ctx.events,
+            level="warning",
+            title="A receipt email was found again",
+            message=(
+                f"{subject}: This receipt was already received before, so it was not used again. "
+                "The email is flagged in the mailbox and was moved to the processed folder."
+            ),
+        )
 
 
 class MailWatcher:
@@ -344,12 +371,13 @@ class MailWatcher:
                 continue
             try:
                 raw = mailbox.fetch(header.uid)
-                done = self._call(self._handler.handle(raw, header.message_id))
-                if done:
-                    mailbox.move(header.uid, self._processed_folder)
-                    moved += 1
-                else:
+                outcome = self._call(self._handler.handle(raw, header.message_id))
+                if outcome == Outcome.LEFT:
                     skipped.add(header.uid)
+                else:
+                    flagged = outcome == Outcome.DUPLICATE
+                    mailbox.move(header.uid, self._processed_folder, flagged=flagged)
+                    moved += 1
             except Exception:
                 # The mail stays where it is and is tried again at the next check
                 logger.exception("Handling the email %r failed", header.subject)

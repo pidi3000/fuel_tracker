@@ -7,6 +7,9 @@ details are linked from each release on GitHub.
 
 ### New
 
+- When a receipt turns up again (the same email twice, or the same receipt in another email),
+  you now get a notification. It is not used again, and its email is flagged on the mail
+  server before it is moved to the processed folder.
 - Receipt emails are marked as read when they are moved to the processed folder.
 - Dates and times are shown in ISO format (2026-10-05, 17:08), whatever language the browser
   uses, and the date and time of a new fuel-up is typed in that format.

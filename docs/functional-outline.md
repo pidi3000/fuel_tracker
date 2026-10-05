@@ -90,7 +90,11 @@ LubeLogger, or until it fails.
    60 minutes), the fuel-up is marked **Failed** and the user is notified.
 6. Once a receipt has been used or ignored, its email is marked as read and
    moved to a separate, configurable folder (default: *Processed*). The inbox then only holds
-   receipts that haven't been dealt with yet.
+   receipts that haven't been dealt with yet. If the same receipt arrives
+   again (the same email twice, or the same receipt in another email), it is
+   not used again. The admins are notified, and the email is also flagged on
+   the mail server before it is moved, so it stands out in the processed
+   folder.
 
 ### Receipts without a fuel-up
 

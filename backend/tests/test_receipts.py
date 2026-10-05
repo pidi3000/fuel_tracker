@@ -318,6 +318,10 @@ async def test_the_same_email_or_transaction_is_stored_once(api: AppUnderTest) -
     assert len(await all_receipts(api)) == 1
     assert [folder for _, folder in mailbox.moved] == ["Processed"] * 3  # all moved away
     assert mailbox.messages == {}
+    # The two repeats are flagged on the mail server and announced in the app
+    assert mailbox.flagged == [2, 3]
+    titles = [n["title"] for n in (await api.client.get("/api/notifications")).json()]
+    assert titles.count("A receipt email was found again") == 2
 
 
 async def test_emails_that_are_not_receipts_are_left_alone(api: AppUnderTest) -> None:
