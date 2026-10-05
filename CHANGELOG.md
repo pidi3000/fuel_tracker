@@ -7,6 +7,9 @@ details are linked from each release on GitHub.
 
 ### New
 
+- A new fuel-up now starts with *Pace Drive email receipt* as the payment, so you only need
+  the vehicle and the odometer reading. Choose *Enter it manually* to type the fuel type,
+  amount and price yourself. (The Apple Shortcut still asks.)
 - The history has its own page (*History* in the menu). On the start page, the receipts
   without a fuel-up are now at the top, above the fuel-ups in progress.
 

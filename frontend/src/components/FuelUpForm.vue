@@ -26,7 +26,8 @@ const emit = defineEmits<{ submit: [payload: Record<string, unknown>] }>()
 const LAST_VEHICLE_KEY = 'fuel-tracker:last-vehicle'
 
 const editing = computed(() => props.fuelUp !== undefined)
-const originalSource = props.fuelUp?.payment_source ?? 'manual'
+// A new fuel-up is paid for with Pace Drive in most cases, so its email receipt is the default
+const originalSource = props.fuelUp?.payment_source ?? 'email_receipt'
 
 const vehicleId = ref<number | ''>(props.fuelUp?.vehicle_id ?? '')
 const odometer = ref<string>(props.fuelUp ? String(props.fuelUp.odometer) : '')
