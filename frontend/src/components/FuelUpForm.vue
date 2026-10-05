@@ -6,6 +6,7 @@ import { coordinatesMapUrl, formatNumber, parseLocalInput, toLocalInput } from '
 import { useGeolocation } from '../geolocation'
 import { loadReference, reference, vehicleLabel } from '../reference'
 import type { FuelUp } from '../types'
+import DateTimePicker from './DateTimePicker.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -126,16 +127,6 @@ function submit() {
   emit('submit', payload)
 }
 
-// The browser blocks the form and shows this while the date and time isn't valid
-const timeInput = ref<HTMLInputElement | null>(null)
-function checkTime() {
-  timeInput.value?.setCustomValidity(
-    parseLocalInput(time.value) ? '' : 'Use the format YYYY-MM-DD HH:MM, e.g. 2026-10-05 17:08.',
-  )
-}
-watch(time, checkTime)
-onMounted(checkTime)
-
 const locationUrl = computed(() => {
   const s = location.state
   return s.status === 'ok' && s.latitude !== null && s.longitude !== null
@@ -198,15 +189,7 @@ const locationText = computed(() => {
 
     <div v-if="variant === 'full'" class="field">
       <label for="time">Date and time</label>
-      <input
-        id="time"
-        ref="timeInput"
-        v-model="time"
-        type="text"
-        placeholder="YYYY-MM-DD HH:MM"
-        autocomplete="off"
-        required
-      />
+      <DateTimePicker id="time" v-model="time" required />
     </div>
 
     <div class="field">
