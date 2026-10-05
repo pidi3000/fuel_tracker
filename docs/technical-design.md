@@ -165,6 +165,10 @@ For each new email:
    missing).
 4. Match it to a pending fuel-up, or list it as unmatched.
 
+A repeated receipt (the same Message-ID, or a receipt with a transaction ID that
+is already stored) is not stored again. It raises a notification for the admins
+and its email is flagged (`\Flagged`) before it is moved.
+
 The email is moved as soon as the receipt is stored. From then on, the stored
 copy is used, so a crash or a LubeLogger outage can't cause the same email to be
 processed twice.

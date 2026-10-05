@@ -72,7 +72,7 @@ def test_receipt_email_round_trip() -> None:
         ((name, data),) = pdf_attachments(message)
         assert name == "receipt.pdf" and data == receipt_pdf()
 
-        mailbox.move(header.uid, "Processed-test")
+        mailbox.move(header.uid, "Processed-test", flagged=True)
         assert not mine()
     finally:
         mailbox.close()
@@ -85,6 +85,7 @@ def test_receipt_email_round_trip() -> None:
         ours = ["HEADER", "Message-ID", message_id]
         assert other._client.search(ours), "the moved email should be in the processed folder"
         assert other._client.search(["SEEN", *ours]), "the moved email should be marked as read"
+        assert other._client.search(["FLAGGED", *ours]), "the moved email should be flagged"
     finally:
         other.close()
 
