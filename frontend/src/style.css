@@ -360,6 +360,129 @@ th {
   user-select: all;
 }
 
+/* --- date and time picker --- */
+
+.datetime {
+  position: relative;
+}
+
+.datetime-control {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.datetime-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.datetime-toggle {
+  line-height: 0;
+  padding: 0.5rem 0.65rem;
+}
+
+.datetime-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+.datetime-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.datetime-nav button {
+  border-color: transparent;
+  background: none;
+  padding: 0.2rem 0.55rem;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.datetime-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.datetime-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.datetime-weekday {
+  padding: 0.2rem 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.datetime-day {
+  height: 2.2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.datetime-day.outside {
+  color: var(--muted);
+}
+
+.datetime-day.today {
+  border-color: var(--accent);
+}
+
+.datetime-day:hover:not(.selected) {
+  background: var(--info-bg);
+}
+
+.datetime-day.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.datetime-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.datetime-footer button {
+  padding: 0.4rem 0.7rem;
+}
+
+.datetime-time {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.datetime-time select {
+  width: auto;
+  padding: 0.35rem 0.3rem;
+}
+
 /* --- toasts --- */
 
 .toasts {

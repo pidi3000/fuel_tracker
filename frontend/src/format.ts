@@ -13,10 +13,10 @@ export function formatMoney(value: string | null, currency: string): string {
   })
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
+export const pad = (n: number) => String(n).padStart(2, '0')
 
 /** Dates are shown as ISO 8601 (2026-09-23, 17:08), whatever language the browser uses. */
-function isoDate(date: Date): string {
+export function isoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
