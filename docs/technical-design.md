@@ -236,6 +236,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `POST` | `/api/receipts/{id}/complete`, `/ignore` | Turn into a fuel-up / ignore |
 | `GET` | `/api/events` | Live updates (SSE): `fuel_up`, `receipt` and `notification` events carry only an id; the client reloads the data through the API |
 | `GET` | `/api/version` | App version (shown in the web UI) |
+| `GET`/`POST` | `/api/update`, `/api/update/check` | What the last look for a newer image found / look now (admin) |
 | `GET` | `/api/status` | Whether LubeLogger (and later the mailbox) work, and whether the extra fields exist (admin) |
 | `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |
 | `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
@@ -271,6 +272,26 @@ The app trusts the `X-Forwarded-*` headers only from the reverse proxy
 addresses in `FORWARDED_ALLOW_IPS`, so it sees the real HTTPS scheme and
 client IP.
 
+## Update check
+
+The app looks once a day (again after an hour if the registry could not be asked)
+whether a newer image of itself exists, and shows the result on the settings
+page. It only compares like with like, based on its own version
+(`/api/version`):
+
+- **Release image** (`1.2.3`): the highest `X.Y.Z` tag of the image is compared
+  with the running version. Other tags are ignored.
+- **Test image** (`1.2.3-test+a1b2c3d`): the `test` tag is read, and the commit it
+  was built from (the `org.opencontainers.image.revision` label of the image) is
+  compared with the commit in the running version.
+- **Builds from source and local images** (`-dev`, `+local`) are not checked.
+
+The registry is asked through its API like `docker pull` does: first for a
+pull token, then for the tag list or the manifest and the image configuration.
+This works without login only while the package is public. When a newer
+version is found, the admins get one notification per version. `UPDATE_CHECK=false`
+turns the check off.
+
 ## Settings
 
 All settings can be set as **environment variables**. Some can also be changed
@@ -295,6 +316,7 @@ until it is reset.
 | Volume unit / currency | `VOLUME_UNIT`, `CURRENCY` | `L`, `EUR` | Yes |
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
 | Notification targets | `APPRISE_URLS` | – | Yes (later) |
+| Look for newer images / image name | `UPDATE_CHECK`, `UPDATE_CHECK_IMAGE` | `true`, `ghcr.io/pidi3000/fuel_tracker` | No |
 | Session lifetime | `SESSION_DAYS` | `30` | No |
 | Trusted proxy | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | No |
 | Data directory | `DATA_DIR` | `/data` | No |
