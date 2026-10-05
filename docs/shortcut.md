@@ -39,7 +39,7 @@ Without a Mac, build it by hand:
 1. *Text* with your server address, *Set Variable* `Server`. The same for the
    token, `Token`.
 2. *Get Current Location*, then *Get Details of Locations* for *Latitude* and
-   again for *Longitude*, each into a variable.
+   again for *Longitude*. Run each through *Replace Text*, `,` with `.`.
 3. *Get Contents of URL*: `Server`/api/vehicles, header `Authorization` with
    `Bearer ` and `Token`.
 4. *Repeat with Each* vehicle: *Get Dictionary from Input*, *Get Dictionary
@@ -52,9 +52,10 @@ Without a Mac, build it by hand:
    amount and the price (*Number*).
 8. *Get Contents of URL*: method `POST`, `/api/fuel-ups`, the `Authorization`
    header, request body *JSON* with the fields below. Set the type of
-   `vehicle_id`, `odometer`, `latitude`, `longitude`, `quantity` and
-   `total_price` to *Number*, not *Text*: a text value carries the decimal
-   comma of a European phone, which the server rejects.
+   `vehicle_id` and `odometer` to *Number*. Send `latitude`, `longitude`,
+   `quantity` and `total_price` as *Text*, each run through *Replace Text*
+   (`,` with `.`) first: as *Number*, a phone set to German loses the decimal
+   comma on the way (52,34 arrives as 5234).
 9. *Get Dictionary Value* `id` of the answer. *If* it has a value, show *Fuel-up
    created*; otherwise *Show Alert* with the answer's `detail`.
 

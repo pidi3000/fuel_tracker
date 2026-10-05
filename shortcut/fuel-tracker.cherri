@@ -16,10 +16,13 @@
 const server = text(serverQ)
 const token = text(tokenQ)
 
-// Where you are (iOS asks for permission the first time)
+// Where you are (iOS asks for permission the first time). The decimals are sent as text with a
+// decimal point: as a number, a phone set to German turns 52,34 into 5234 on the way
 const here = getCurrentLocation()
 const latitude = getLocationDetail(here, "Latitude")
 const longitude = getLocationDetail(here, "Longitude")
+const latitudeText = replaceText(",", ".", "{latitude}")
+const longitudeText = replaceText(",", ".", "{longitude}")
 
 // Which vehicle: the names to choose from, then the id of the chosen one
 const vehicles = downloadURL("{server}/api/vehicles", {"Authorization": "Bearer {token}"})
@@ -48,15 +51,15 @@ const lastReading = getDictionary(last)
 const lastOdometer = getValue(lastReading, "odometer")
 @odometer = prompt("Odometer reading (last: {lastOdometer})", "Number")
 
-// Send it. The numbers in the bodies are made real JSON numbers by build.py
+// Send it. The whole numbers (vehicle and odometer) are made real JSON numbers by build.py
 @response = ""
 menu "How do you pay?" {
     item "Pace Drive email receipt":
         @response = jsonRequest("{server}/api/fuel-ups", "POST", {
             "vehicle_id": "{@vehicleId}",
             "odometer": "{@odometer}",
-            "latitude": "{latitude}",
-            "longitude": "{longitude}",
+            "latitude": "{latitudeText}",
+            "longitude": "{longitudeText}",
             "payment_source": "email_receipt"
         }, {"Authorization": "Bearer {token}"})
     item "Manual":
@@ -68,15 +71,17 @@ menu "How do you pay?" {
         const fuelType = chooseFromList(fuelTypes, "Fuel type")
         @quantity = prompt("Amount of fuel ({volumeUnit})", "Number")
         @price = prompt("Total price ({currency})", "Number")
+        const quantityText = replaceText(",", ".", "{@quantity}")
+        const priceText = replaceText(",", ".", "{@price}")
         @response = jsonRequest("{server}/api/fuel-ups", "POST", {
             "vehicle_id": "{@vehicleId}",
             "odometer": "{@odometer}",
-            "latitude": "{latitude}",
-            "longitude": "{longitude}",
+            "latitude": "{latitudeText}",
+            "longitude": "{longitudeText}",
             "payment_source": "manual",
             "fuel_type": "{fuelType}",
-            "quantity": "{@quantity}",
-            "total_price": "{@price}"
+            "quantity": "{quantityText}",
+            "total_price": "{priceText}"
         }, {"Authorization": "Bearer {token}"})
 }
 

@@ -7,8 +7,9 @@ on an iPhone, see docs/shortcut.md.
 
 Afterwards this script makes two changes to what Cherri produced:
 
-- Cherri sends every variable in a JSON body as text, so a decimal comma (locale!) would reach
-  the server as "45,5". The script turns those values into real JSON numbers.
+- Cherri sends every variable in a JSON body as text. The script turns the whole numbers (the
+  vehicle and the odometer reading) into real JSON numbers. The decimals stay text, see the
+  source: as a number they lose their decimal separator on a phone that is set to German.
 - Cherri puts a "Nothing" action between blocks, which show up as gray boxes in the Shortcuts
   app. They are not needed, except to start the list of vehicle names empty, so the script
   removes the others.
@@ -25,8 +26,8 @@ HERE = Path(__file__).parent
 SOURCE = HERE / "fuel-tracker.cherri"
 OUTPUT = HERE / "Fuel Tracker.shortcut"
 
-# The fields of POST /api/fuel-ups that are numbers
-NUMBERS = {"vehicle_id", "odometer", "latitude", "longitude", "quantity", "total_price"}
+# The whole numbers of POST /api/fuel-ups
+NUMBERS = {"vehicle_id", "odometer"}
 NUMBER_ITEM = 3  # a dictionary item of type "number" (0 is text)
 ACTION = "WFWorkflowActionIdentifier"
 PARAMETERS = "WFWorkflowActionParameters"
@@ -53,7 +54,7 @@ def make_numbers(shortcut: dict) -> None:
                 item["WFItemType"] = NUMBER_ITEM
                 found.add(key)
     if found != NUMBERS:
-        sys.exit(f"The source does not send these numbers: {sorted(NUMBERS - found)}")
+        sys.exit(f"The source does not send these whole numbers: {sorted(NUMBERS - found)}")
 
 
 def is_nothing(action: dict) -> bool:
