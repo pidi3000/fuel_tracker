@@ -8,6 +8,7 @@ from app.core.types import utcnow
 from app.models import Receipt, ReceiptState
 from app.services import receipts as receipt_service
 from app.services.mail import MailWatcher, ReceiptMailHandler
+from app.services.receipts import pending_email_moves
 from tests.conftest import AppUnderTest
 from tests.fake_mailbox import FakeMailbox, build_email, receipt_pdf
 from tests.helpers import create_user, get_fuel_up, sign_in_admin, sign_in_as
@@ -308,20 +309,87 @@ async def test_payment_data_sent_with_a_receipt_fuel_up_is_ignored(api: AppUnder
     assert created["fuel_type"] is None and created["quantity"] is None
 
 
-async def test_the_same_email_or_transaction_is_stored_once(api: AppUnderTest) -> None:
+async def notification_titles(api: AppUnderTest) -> list[str]:
+    return [n["title"] for n in (await api.client.get("/api/notifications")).json()]
+
+
+async def test_an_email_stays_in_the_inbox_until_its_receipt_is_linked(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    mailbox = FakeMailbox()
+    raw = build_email(pdf=receipt_pdf(), message_id="<a@x>")
+    assert await deliver(api, mailbox, raw, message_id="<a@x>") == 0
+    assert len(await all_receipts(api)) == 1
+    assert len(mailbox.messages) == 1 and mailbox.moved == []
+
+    # Looked at again (and again): nothing happens, it isn't taken for a second copy
+    watcher = make_watcher(api)
+    for _ in range(2):
+        assert await asyncio.to_thread(watcher.process_inbox, mailbox) == 0
+    assert len(mailbox.messages) == 1 and mailbox.flagged == []
+    assert mailbox.fetched == [1], "an email that is waiting isn't read again"
+    assert "A receipt email was found again" not in await notification_titles(api)
+
+    # The fuel-up arrives later and takes the receipt; now the email can go
+    created = await receipt_fuel_up(api)
+    assert (await get_fuel_up(api, created["id"]))["receipt_id"] is not None
+    assert await asyncio.to_thread(watcher.process_inbox, mailbox) == 1
+    assert mailbox.moved == [(1, "Processed")] and mailbox.marked_read == [1]
+    assert mailbox.flagged == [] and mailbox.messages == {}
+    assert "A receipt email was found again" not in await notification_titles(api)
+    assert [r.email_moved for r in await all_receipts(api)] == [True]
+
+
+async def test_an_ignored_receipt_email_is_moved(api: AppUnderTest) -> None:
     await sign_in_admin(api)
     mailbox = FakeMailbox()
     await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>"))
-    # Delivered again (same Message-ID), and again as a new email with the same receipt
-    await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>"))
-    await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<b@x>"))
+    (receipt,) = await all_receipts(api)
+    assert (await api.client.post(f"/api/receipts/{receipt.id}/ignore")).status_code == 204
+    async with api.services.sessionmaker() as session:
+        assert await pending_email_moves(session) == {receipt.id}
+    assert await asyncio.to_thread(make_watcher(api).process_inbox, mailbox) == 1
+    assert mailbox.moved == [(1, "Processed")] and mailbox.flagged == []
+    async with api.services.sessionmaker() as session:
+        assert await pending_email_moves(session) == set()
+
+
+async def test_a_second_copy_of_a_moved_email_is_flagged(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    mailbox = FakeMailbox()
+    await receipt_fuel_up(api)
+    assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>")) == 1
+    assert mailbox.flagged == []
+    # The same email arrives again, and again as a new email with the same receipt
+    assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>")) == 1
+    assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<b@x>")) == 1
     assert len(await all_receipts(api)) == 1
-    assert [folder for _, folder in mailbox.moved] == ["Processed"] * 3  # all moved away
-    assert mailbox.messages == {}
-    # The two repeats are flagged on the mail server and announced in the app
-    assert mailbox.flagged == [2, 3]
-    titles = [n["title"] for n in (await api.client.get("/api/notifications")).json()]
+    assert [folder for _, folder in mailbox.moved] == ["Processed"] * 3
+    assert mailbox.flagged == [2, 3] and mailbox.messages == {}
+    titles = await notification_titles(api)
     assert titles.count("A receipt email was found again") == 2
+
+
+async def test_two_copies_in_the_inbox_leave_together_once_linked(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    mailbox = FakeMailbox()
+    await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>"))
+    await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>"))
+    assert len(mailbox.messages) == 2 and mailbox.moved == []
+    await receipt_fuel_up(api)
+    assert await asyncio.to_thread(make_watcher(api).process_inbox, mailbox) == 2
+    assert mailbox.messages == {} and mailbox.flagged == [
+        2
+    ]  # the first is the email, the second its copy
+
+
+async def test_a_new_email_with_a_stored_transaction_is_flagged_at_once(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    mailbox = FakeMailbox()
+    await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<a@x>"))
+    # Same receipt in another email while the first still waits in the inbox
+    assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<b@x>")) == 1
+    assert mailbox.flagged == [2] and list(mailbox.messages) == [1]
+    assert "A receipt email was found again" in await notification_titles(api)
 
 
 async def test_emails_that_are_not_receipts_are_left_alone(api: AppUnderTest) -> None:
@@ -340,7 +408,8 @@ async def test_emails_that_are_not_receipts_are_left_alone(api: AppUnderTest) ->
 async def test_an_unreadable_pdf_is_kept_and_reported(api: AppUnderTest) -> None:
     await sign_in_admin(api)
     mailbox = FakeMailbox()
-    assert await deliver(api, mailbox, build_email(pdf=b"%PDF-1.4 broken")) == 1
+    # It stays in the inbox until the receipt is ignored
+    assert await deliver(api, mailbox, build_email(pdf=b"%PDF-1.4 broken")) == 0
     (receipt,) = await all_receipts(api)
     assert receipt.parse_error and receipt.paid_at is None
     note = (await api.client.get("/api/notifications")).json()[0]
@@ -491,6 +560,7 @@ async def wait_for(predicate, seconds: float = 5) -> None:
 
 async def test_the_watcher_thread_processes_new_mail_and_stops(api: AppUnderTest) -> None:
     await sign_in_admin(api)
+    await receipt_fuel_up(api)  # takes the receipt, so its email can be moved
     mailbox = FakeMailbox()
     watcher = make_watcher(api)
     watcher._factory = lambda: mailbox
@@ -524,6 +594,7 @@ async def test_the_watcher_reconnects_after_a_failure(api: AppUnderTest) -> None
 
 async def test_check_now_looks_at_the_inbox_without_waiting(api: AppUnderTest) -> None:
     await sign_in_admin(api)
+    await receipt_fuel_up(api)  # takes the receipt, so its email can be moved
     mailbox = FakeMailbox()
     watcher = make_watcher(api)
     watcher._factory = lambda: mailbox
