@@ -6,7 +6,14 @@ import { getJson, patchJson, postJson } from '../api'
 import FuelUpForm from '../components/FuelUpForm.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, onEvent } from '../events'
-import { attentionTitle, formatDateTime, formatMoney, formatNumber, formatTime } from '../format'
+import {
+  attentionTitle,
+  coordinatesMapUrl,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+  formatTime,
+} from '../format'
 import { showToast } from '../toast'
 import type { FuelUp, Receipt } from '../types'
 

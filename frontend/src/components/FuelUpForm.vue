@@ -128,7 +128,9 @@ function submit() {
 
 const locationUrl = computed(() => {
   const s = location.state
-  return s.status === 'ok' ? coordinatesMapUrl(s.latitude, s.longitude) : null
+  return s.status === 'ok' && s.latitude !== null && s.longitude !== null
+    ? coordinatesMapUrl(s.latitude, s.longitude)
+    : null
 })
 
 const locationText = computed(() => {
