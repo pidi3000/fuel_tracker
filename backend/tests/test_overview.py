@@ -109,6 +109,14 @@ async def test_history_comes_from_lubelogger(api: AppUnderTest) -> None:
     assert newest["fuel_consumed"] == "31.25" and newest["cost"] == "60"
     assert history["items"][2]["files"] == [{"name": "r.pdf", "location": "/documents/x.pdf"}]
 
+    api.fake.uploads["/documents/x.pdf"] = b"%PDF-1.4 receipt"
+    shown = await api.client.get(f"/api/history/1/{history['items'][2]['id']}/files/0")
+    assert shown.status_code == 200 and shown.content == b"%PDF-1.4 receipt"
+    assert shown.headers["content-type"] == "application/pdf"
+    assert shown.headers["content-disposition"].startswith("inline")
+    assert (await api.client.get(f"/api/history/1/{newest['id']}/files/0")).status_code == 404
+    assert (await api.client.get("/api/history/1/9999/files/0")).status_code == 404
+
     one = (await api.client.get("/api/history?vehicle_id=2")).json()
     assert [i["vehicle_id"] for i in one["items"]] == [2]
     page = (await api.client.get("/api/history?limit=1&offset=1")).json()
@@ -126,6 +134,7 @@ async def test_history_respects_vehicle_access(api: AppUnderTest) -> None:
     history = (await api.client.get("/api/history")).json()
     assert [i["vehicle_id"] for i in history["items"]] == [1]
     assert (await api.client.get("/api/history?vehicle_id=2")).status_code == 404
+    assert (await api.client.get("/api/history/2/1/files/0")).status_code == 404
 
 
 async def test_history_when_lubelogger_is_down(api: AppUnderTest) -> None:

@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, ServicesDep
@@ -86,3 +86,36 @@ async def history(
         if r.vehicle_id in vehicles
     ]
     return HistoryOut(items=items, total=len(records))
+
+
+@router.get("/history/{vehicle_id}/{record_id}/files/{index}")
+async def history_file(
+    vehicle_id: int, record_id: int, index: int, user: CurrentUser, services: ServicesDep
+) -> Response:
+    """A file attached to a record in LubeLogger (e.g. the receipt), passed through."""
+    if services.lubelogger is None or not user.can_access_vehicle(vehicle_id):
+        raise HTTPException(404, "Unknown vehicle.")
+    try:
+        records = await services.lubelogger.gas_records(vehicle_id)
+        record = next((r for r in records if r.id == record_id), None)
+        if record is None or not 0 <= index < len(record.files):
+            raise HTTPException(404, "That file doesn't exist.")
+        attached = record.files[index]
+        content, content_type = await services.lubelogger.download(attached.location)
+    except LubeLoggerUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except LubeLoggerError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+    # Only show what can't run scripts in the browser; anything else is downloaded
+    shown = content_type.split(";")[0] in ("application/pdf", "image/png", "image/jpeg")
+    name = attached.name.replace('"', "")
+    return Response(
+        content,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": f'{"inline" if shown else "attachment"}; filename="{name}"',
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "sandbox",
+        },
+    )

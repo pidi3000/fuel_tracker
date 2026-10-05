@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### New
 
+- Files attached to a record in LubeLogger, such as the receipt, are linked in the history
+  and open straight from Fuel Tracker.
 - The history can be filtered by vehicle.
 - When you add a fuel-up, the location is a link that opens it on OpenStreetMap, so you can
   check right away that it is roughly right.
