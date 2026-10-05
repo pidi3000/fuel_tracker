@@ -140,10 +140,11 @@ everything worked.
 
 The web UI shows two lists:
 
-- **In progress**: fuel-ups stored in Fuel Tracker, with their status
-- **History**: past fuel records loaded live from LubeLogger, for the vehicles
-  the user has access to. This includes records entered directly in
-  LubeLogger
+- **In progress** (the start page, below the receipts that have no fuel-up
+  yet): fuel-ups stored in Fuel Tracker, with their status
+- **History** (its own page): past fuel records loaded live from LubeLogger,
+  for the vehicles the user has access to, optionally for one vehicle. This
+  includes records entered directly in LubeLogger
 
 | Status | Meaning |
 | --- | --- |
