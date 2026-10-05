@@ -13,6 +13,9 @@ details are linked from each release on GitHub.
   header.
 - A button in the header switches between the light and the dark theme. Until you use it, the
   app follows your device; your choice is remembered in the browser.
+- The date and time of a fuel-up can be picked from a calendar (the button next to the field),
+  as well as typed. The calendar follows ISO as well: the year comes first, weeks start on
+  Monday, and the time is on a 24-hour clock, whatever language the browser uses.
 - The history has its own page (*History* in the menu). On the start page, the receipts
   without a fuel-up are now at the top, above the fuel-ups in progress.
 
