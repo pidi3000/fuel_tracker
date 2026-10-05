@@ -42,7 +42,7 @@ Each fuel-up has these fields, entered in the web UI or sent through the API:
 | Odometer reading | Required, whole number. Rejected if it is lower than the vehicle's last reading in LubeLogger or in a fuel-up that hasn't been sent to LubeLogger yet |
 | Full fuel-up | Defaults to *yes* |
 | Missed fuel-up | LubeLogger's flag. Defaults to *no* |
-| Date and time | Defaults to *now* |
+| Date and time | Defaults to *now*, in the device's local time. Typed or picked from a calendar, always in ISO format (`2026-10-05 17:08`: year first, 24-hour clock, weeks starting on Monday), whatever language the browser uses |
 | GPS location | Requested from the browser (the server always runs on HTTPS) or sent by the Shortcut |
 | Payment source | **Pace Drive email receipt** or **Manual** (the Pace Drive API is postponed). The web UI starts with the email receipt selected; the Shortcut asks, and the API defaults to *Manual* |
 | Manual payment details | Only for *Manual*: fuel type (from the configured list), fuel amount and total price. The UI shows the configured units next to the inputs |
@@ -161,6 +161,18 @@ LubeLogger.
 For a failed fuel-up, the user can also retry the receipt search or enter the
 payment data manually. Notifications are only sent when something fails or needs
 attention, never on success.
+
+### Navigation and appearance
+
+The start page (the fuel-ups in progress) is the main page, and *New fuel-up* is
+a button on it. The other pages (history, notifications, account, and for admins
+users and settings) are in the header on a wide screen, and in a menu behind the
+menu button on a narrow one such as a phone, where the menu button also shows
+the number of unread notifications.
+
+A button in the header switches between the light and the dark theme. Until it
+is used, the app follows the device's setting. The choice is remembered in the
+browser, and switching back to the device's theme goes back to following it.
 
 ### Users and access
 

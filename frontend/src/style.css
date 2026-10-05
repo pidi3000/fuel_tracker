@@ -26,8 +26,10 @@
   line-height: 1.45;
 }
 
+/* The theme button sets data-theme on <html> (see theme.ts). Without it, the system decides.
+   The dark colours are listed twice, for the system and for the button: keep both the same. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1419;
     --surface: #171c22;
     --text: #e6e9ed;
@@ -44,6 +46,29 @@
     --info: #6aa6ff;
     --info-bg: #17263b;
   }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --surface: #171c22;
+  --text: #e6e9ed;
+  --muted: #98a2b3;
+  --border: #2a323c;
+  --accent: #4c8dff;
+  --accent-text: #0b0f14;
+  --danger: #ff6b6b;
+  --danger-bg: #3a1c1c;
+  --ok: #5fcf80;
+  --ok-bg: #16301f;
+  --warn: #f5a524;
+  --warn-bg: #3a2a10;
+  --info: #6aa6ff;
+  --info-bg: #17263b;
 }
 
 * {
@@ -92,6 +117,7 @@ p {
 /* --- layout --- */
 
 .app-header {
+  position: relative;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -103,26 +129,58 @@ p {
   display: flex;
   align-items: center;
   gap: 0.5rem 0.75rem;
-  flex-wrap: wrap;
 }
 
 .brand {
   font-weight: 700;
   color: var(--accent);
   text-decoration: none;
+  white-space: nowrap;
   margin-right: auto;
 }
 
-.app-header nav {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
+.icon-button {
+  position: relative;
+  line-height: 0;
+  padding: 0.45rem 0.55rem;
 }
 
-.app-header nav a {
-  padding: 0.3rem 0.5rem;
+.menu-button .count {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* On a narrow screen the pages are a list that drops down below the header */
+.app-header nav {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  flex-direction: column;
+  padding: 0.25rem 1rem 0.75rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+}
+
+.app-header nav.open {
+  display: flex;
+}
+
+.app-header nav a,
+.app-header nav button.link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.5rem;
   border-radius: 6px;
   color: var(--text);
+  text-align: left;
   text-decoration: none;
 }
 
@@ -130,6 +188,37 @@ p {
 .app-header nav a.router-link-active {
   background: var(--info-bg);
   color: var(--accent);
+}
+
+/* On a wide screen the pages stay in the header, and there is no menu button. The header
+   is wider than the page below it, because all of the pages (and Sign out) have to fit. */
+@media (min-width: 56rem) {
+  .app-header .inner {
+    max-width: 60rem;
+  }
+
+  .menu-button {
+    display: none;
+  }
+
+  .app-header nav,
+  .app-header nav.open {
+    display: flex;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+
+  .app-header nav a,
+  .app-header nav button.link {
+    min-height: 0;
+    padding: 0.3rem 0.5rem;
+  }
 }
 
 .page {
@@ -358,6 +447,129 @@ th {
   padding: 0.6rem;
   word-break: break-all;
   user-select: all;
+}
+
+/* --- date and time picker --- */
+
+.datetime {
+  position: relative;
+}
+
+.datetime-control {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.datetime-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.datetime-toggle {
+  line-height: 0;
+  padding: 0.5rem 0.65rem;
+}
+
+.datetime-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
+}
+
+.datetime-nav {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.datetime-nav button {
+  border-color: transparent;
+  background: none;
+  padding: 0.2rem 0.55rem;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.datetime-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.datetime-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.datetime-weekday {
+  padding: 0.2rem 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.datetime-day {
+  height: 2.2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.datetime-day.outside {
+  color: var(--muted);
+}
+
+.datetime-day.today {
+  border-color: var(--accent);
+}
+
+.datetime-day:hover:not(.selected) {
+  background: var(--info-bg);
+}
+
+.datetime-day.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.datetime-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.datetime-footer button {
+  padding: 0.4rem 0.7rem;
+}
+
+.datetime-time {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.datetime-time select {
+  width: auto;
+  padding: 0.35rem 0.3rem;
 }
 
 /* --- toasts --- */
