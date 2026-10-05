@@ -9,6 +9,7 @@ import { debounced, onEvent } from '../events'
 import {
   addressMapUrl,
   attentionTitle,
+  coordinatesMapUrl,
   formatDateTime,
   formatMoney,
   formatNumber,
@@ -86,7 +87,7 @@ async function save(payload: Record<string, unknown>) {
 const mapUrl = computed(() => {
   const f = fuelUp.value
   if (!f || f.latitude === null || f.longitude === null) return null
-  return `https://www.openstreetmap.org/?mlat=${f.latitude}&mlon=${f.longitude}#map=17/${f.latitude}/${f.longitude}`
+  return coordinatesMapUrl(f.latitude, f.longitude)
 })
 
 const paymentLabel = computed(() =>

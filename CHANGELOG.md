@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### New
 
+- When you add a fuel-up, the location is a link that opens it on OpenStreetMap, so you can
+  check right away that it is roughly right.
 - The station address from a receipt is now a link that opens it on OpenStreetMap, like the
   coordinates (on the fuel-up page, the receipt page and in the history).
 - A fuel-up that needs attention now says why, with a short headline in the list and on
