@@ -162,6 +162,18 @@ For a failed fuel-up, the user can also retry the receipt search or enter the
 payment data manually. Notifications are only sent when something fails or needs
 attention, never on success.
 
+### Navigation and appearance
+
+The start page (the fuel-ups in progress) is the main page, and *New fuel-up* is
+a button on it. The other pages (history, notifications, account, and for admins
+users and settings) are in the header on a wide screen, and in a menu behind the
+menu button on a narrow one such as a phone, where the menu button also shows
+the number of unread notifications.
+
+A button in the header switches between the light and the dark theme. Until it
+is used, the app follows the device's setting. The choice is remembered in the
+browser, and switching back to the device's theme goes back to following it.
+
 ### Users and access
 
 The server supports multiple user accounts with two roles:
