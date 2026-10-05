@@ -37,6 +37,7 @@ decisions, plus open to-dos to bring up with the user once code exists).
   request on a branch named `release/<version>` that only raises `VERSION` and
   renames `## Unreleased` to `## <version> - <date>`. Merging it triggers the
   release workflow.
+- Give the release pull request the label `release`.
 - Version numbers follow semantic versioning: breaking changes raise the major
   number (from 1.0.0 on), new features the minor number, fixes the patch
   number.
