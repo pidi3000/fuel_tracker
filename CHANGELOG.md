@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### New
 
+- `RECEIPT_SENDER` can list several addresses, separated by commas, for example to test with
+  receipts sent from another email account.
 - A new fuel-up now starts with *Pace Drive email receipt* as the payment, so you only need
   the vehicle and the odometer reading. Choose *Enter it manually* to type the fuel type,
   amount and price yourself. (The Apple Shortcut still asks.)

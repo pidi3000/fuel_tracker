@@ -16,7 +16,7 @@ from tests.helpers import create_user, get_fuel_up, sign_in_admin, sign_in_as
 RECEIPT_TIME = datetime(2026, 9, 23, 15, 8, tzinfo=UTC)  # the fixture receipt, 17:08 in Berlin
 
 
-def make_watcher(api: AppUnderTest) -> MailWatcher:
+def make_watcher(api: AppUnderTest, sender: str | None = None) -> MailWatcher:
     handler = ReceiptMailHandler(
         api.services.sessionmaker, api.services.receipts, api.services.processor.wake
     )
@@ -25,7 +25,7 @@ def make_watcher(api: AppUnderTest) -> MailWatcher:
         FakeMailbox,
         handler,
         asyncio.get_running_loop(),
-        sender=settings.receipt_sender,
+        sender=sender if sender is not None else settings.receipt_sender,
         subject_pattern=settings.receipt_subject_pattern,
         processed_folder="Processed",
         poll_seconds=1,
@@ -390,6 +390,33 @@ async def test_a_new_email_with_a_stored_transaction_is_flagged_at_once(api: App
     assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<b@x>")) == 1
     assert mailbox.flagged == [2] and list(mailbox.messages) == [1]
     assert "A receipt email was found again" in await notification_titles(api)
+
+
+async def test_receipts_can_come_from_several_senders(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    mailbox = FakeMailbox()
+    pdf = receipt_pdf()
+    old = "old.account@example.org"
+    mailbox.deliver(build_email(pdf=pdf, sender=old, message_id="<old@x>"), sender=old)
+    mailbox.deliver(build_email(pdf=pdf, message_id="<new@x>"))
+    stranger = "someone@example.com"
+    mailbox.deliver(build_email(pdf=pdf, sender=stranger), sender=stranger)
+
+    # Only the configured sender: the old account's email is not a receipt
+    only_pace = make_watcher(api)
+    assert [only_pace.is_receipt(h) for h in mailbox.headers()] == [False, True, False]
+
+    # Several senders, separated by commas (spaces and capitals don't matter)
+    several = make_watcher(api, sender="no-reply@connectedfueling.com, Old.Account@example.org")
+    assert [several.is_receipt(h) for h in mailbox.headers()] == [True, True, False]
+    # Both emails carry the same receipt: the first is stored and waits for a fuel-up, the
+    # second is a repeat. The stranger's email is left alone.
+    assert await asyncio.to_thread(several.process_inbox, mailbox) == 1
+    assert len(await all_receipts(api)) == 1
+    assert list(mailbox.messages) == [1, 3] and mailbox.flagged == [2]
+    # The subject still has to match
+    mailbox.deliver(build_email(pdf=pdf, sender=old, subject="Hello"), sender=old, subject="Hello")
+    assert several.is_receipt(mailbox.headers()[-1]) is False
 
 
 async def test_emails_that_are_not_receipts_are_left_alone(api: AppUnderTest) -> None:
