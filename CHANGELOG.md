@@ -9,6 +9,11 @@ details are linked from each release on GitHub.
 
 - Dates and times are shown in ISO format (2026-10-05, 17:08), whatever language the browser
   uses, and the date and time of a new fuel-up is typed in that format.
+- Files attached to a record in LubeLogger, such as the receipt, are linked in the history
+  and open straight from Fuel Tracker.
+- The history can be filtered by vehicle.
+- When you add a fuel-up, the location is a link that opens it on OpenStreetMap, so you can
+  check right away that it is roughly right.
 - The station address from a receipt is now a link that opens it on OpenStreetMap, like the
   coordinates (on the fuel-up page, the receipt page and in the history).
 - A fuel-up that needs attention now says why, with a short headline in the list and on

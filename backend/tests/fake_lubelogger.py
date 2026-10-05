@@ -80,6 +80,12 @@ class FakeLubeLogger:
         assert request.headers.get("culture-invariant") == "true"
 
         path = request.url.path
+        if request.method == "GET" and path.startswith("/documents/"):
+            if path not in self.uploads:
+                return httpx.Response(404, text="not found")
+            return httpx.Response(
+                200, content=self.uploads[path], headers={"content-type": "application/pdf"}
+            )
         query = {k: v[0] for k, v in parse_qs(request.url.query.decode()).items()}
         vehicle_id = int(query.get("vehicleId", 0))
 

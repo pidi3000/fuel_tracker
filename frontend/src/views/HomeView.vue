@@ -14,7 +14,7 @@ import {
   formatNumber,
   formatTime,
 } from '../format'
-import { loadReference, reference } from '../reference'
+import { loadReference, reference, vehicleLabel } from '../reference'
 import { showToast } from '../toast'
 import type { FuelUp, HistoryRecord, Receipt } from '../types'
 
@@ -25,6 +25,13 @@ const receipts = ref<Receipt[]>([])
 const history = ref<HistoryRecord[]>([])
 const historyTotal = ref(0)
 const historyError = ref('')
+// The vehicle the history is limited to; empty shows all vehicles
+const historyVehicle = ref('')
+
+function historyQuery(limit: number, offset = 0): string {
+  const vehicle = historyVehicle.value ? `&vehicle_id=${historyVehicle.value}` : ''
+  return `/history?limit=${limit}&offset=${offset}${vehicle}`
+}
 const error = ref('')
 const loaded = ref(false)
 const loadingMore = ref(false)
@@ -60,7 +67,7 @@ async function loadHistory() {
     // Reload as many records as are shown now, so "load more" isn't undone by an update
     const limit = Math.max(PAGE_SIZE, history.value.length)
     const page = await getJson<{ items: HistoryRecord[]; total: number }>(
-      `/history?limit=${Math.min(limit, 100)}`,
+      historyQuery(Math.min(limit, 100)),
     )
     history.value = page.items
     historyTotal.value = page.total
@@ -74,7 +81,7 @@ async function loadMore() {
   loadingMore.value = true
   try {
     const page = await getJson<{ items: HistoryRecord[]; total: number }>(
-      `/history?limit=${PAGE_SIZE}&offset=${history.value.length}`,
+      historyQuery(PAGE_SIZE, history.value.length),
     )
     history.value = [...history.value, ...page.items]
     historyTotal.value = page.total
@@ -99,6 +106,13 @@ async function ignoreReceipt(receipt: Receipt) {
 const reloadProgress = debounced(() => void loadProgress())
 const reloadReceipts = debounced(() => void loadReceipts())
 // A finished fuel-up shows up in the history a moment later
+async function changeHistoryVehicle() {
+  // Start from the first page of the other vehicle
+  history.value = []
+  historyTotal.value = 0
+  await loadHistory()
+}
+
 const reloadHistory = debounced(() => void loadHistory(), 1000)
 
 let stop: Array<() => void> = []
@@ -220,8 +234,17 @@ const currency = computed(() => reference.fuel?.currency ?? 'EUR')
           {{ historyTotal }} in LubeLogger
         </span>
       </div>
+      <div v-if="reference.vehicles.length > 1" class="field">
+        <label for="history-vehicle">Vehicle</label>
+        <select id="history-vehicle" v-model="historyVehicle" @change="changeHistoryVehicle">
+          <option value="">All vehicles</option>
+          <option v-for="vehicle in reference.vehicles" :key="vehicle.id" :value="vehicle.id">
+            {{ vehicleLabel(vehicle) }}
+          </option>
+        </select>
+      </div>
       <div v-if="historyError" class="alert error" role="alert">{{ historyError }}</div>
-      <p v-else-if="loaded && !history.length" class="muted">No fuel records yet.</p>
+      <p v-else-if="loaded && !history.length" class="muted">No fuel records found.</p>
       <ul class="list">
         <li v-for="record in history" :key="`${record.vehicle_id}-${record.id}`">
           <div class="item-head">
@@ -235,6 +258,17 @@ const currency = computed(() => reference.fuel?.currency ?? 'EUR')
               {{ formatNumber(record.fuel_consumed) }} {{ unit }} ·
               {{ formatMoney(record.cost, currency) }}
             </div>
+          </div>
+          <div v-if="record.files.length" class="small">
+            <template v-for="(file, index) in record.files" :key="index">
+              <template v-if="index"> · </template>
+              <a
+                :href="`/api/history/${record.vehicle_id}/${record.id}/files/${index}`"
+                target="_blank"
+                rel="noopener"
+                >{{ file.name }}</a
+              >
+            </template>
           </div>
           <div v-if="record.address" class="small muted">
             <a :href="addressMapUrl(record.address)" target="_blank" rel="noopener">{{

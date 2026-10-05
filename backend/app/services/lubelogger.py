@@ -217,6 +217,30 @@ class LubeLoggerClient:
         )
         return [_parse_record(raw) for raw in data]
 
+    async def download(self, location: str) -> tuple[bytes, str]:
+        """A file attached to a record, as (content, content type).
+
+        Only LubeLogger's own file folders are fetched, whatever the location says.
+        """
+        if not location.startswith(("/documents/", "/images/")) or ".." in location:
+            raise LubeLoggerRejected("That is not a file stored in LubeLogger.")
+        try:
+            response = await self._http.get(location, headers={"Accept": "*/*"})
+        except httpx.HTTPError as exc:
+            raise LubeLoggerUnavailable(
+                f"LubeLogger can't be reached ({type(exc).__name__})."
+            ) from exc
+        if response.status_code >= 500:
+            raise LubeLoggerUnavailable(f"LubeLogger had an error: {_message(response)}.")
+        if response.status_code in (401, 403):
+            raise LubeLoggerRejected(
+                f"LubeLogger refused the API key (HTTP {response.status_code}). "
+                "Check LUBELOGGER_API_KEY and its permissions."
+            )
+        if response.status_code >= 400:
+            raise LubeLoggerRejected("LubeLogger doesn't have that file.")
+        return response.content, response.headers.get("content-type", "application/octet-stream")
+
     async def all_gas_records(self) -> list[GasRecord]:
         data = await self._request("GET", "/api/vehicle/gasrecords/all")
         return [_parse_record(raw) for raw in data]
