@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # Check the inbox at least this often, even if the server doesn't announce new mail
     imap_poll_seconds: int = 300
     # An email is a receipt if it comes from this address and its subject matches
+    # Several addresses can be given, separated by commas (e.g. while testing with another account)
     receipt_sender: str = "no-reply@connectedfueling.com"
     receipt_subject_pattern: str = r"\|\s*PACE Pay\s*$"
 

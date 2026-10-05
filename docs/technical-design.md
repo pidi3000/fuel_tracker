@@ -315,7 +315,7 @@ until it is reset.
 | Extra field names | `LUBELOGGER_FIELD_GPS`, `LUBELOGGER_FIELD_ADDRESS` | `GPS Location`, `Address` | No |
 | IMAP host, port, user, password | `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD` | port `993` | No |
 | Inbox / processed folder | `IMAP_INBOX`, `IMAP_PROCESSED_FOLDER` | `INBOX`, `Processed` | No |
-| Receipt sender / subject pattern | `RECEIPT_SENDER`, `RECEIPT_SUBJECT_PATTERN` | `no-reply@connectedfueling.com`, `\| PACE Pay$` | No |
+| Receipt sender(s) / subject pattern | `RECEIPT_SENDER` (one address, or several separated by commas), `RECEIPT_SUBJECT_PATTERN` | `no-reply@connectedfueling.com`, `\| PACE Pay$` | No |
 | Mailbox use of SSL, check interval | `IMAP_SSL`, `IMAP_POLL_SECONDS` | `true`, `300` | No |
 | Matching window | `MATCH_WINDOW_MINUTES` | `10` | Yes |
 | Receipt wait time | `RECEIPT_TIMEOUT_MINUTES` | `60` | Yes |

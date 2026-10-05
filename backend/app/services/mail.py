@@ -351,7 +351,8 @@ class MailWatcher:
         self._factory = mailbox_factory
         self._handler = handler
         self._loop = loop
-        self._sender = sender.lower()
+        # Several senders can be given, separated by commas
+        self._senders = [part.strip().lower() for part in sender.split(",") if part.strip()]
         self._subject = re.compile(subject_pattern, re.IGNORECASE)
         self._processed_folder = processed_folder
         self._poll_seconds = poll_seconds
@@ -416,7 +417,8 @@ class MailWatcher:
 
     def is_receipt(self, header: MailHeader) -> bool:
         sender = parseaddr(header.sender)[1].lower() or header.sender.lower()
-        return self._sender in sender and bool(self._subject.search(header.subject))
+        from_a_sender = any(wanted in sender for wanted in self._senders)
+        return from_a_sender and bool(self._subject.search(header.subject))
 
     def process_inbox(self, mailbox: Mailbox, skipped: set[int] | None = None) -> int:
         """Handle the receipt emails in the inbox. Returns how many were moved away."""
