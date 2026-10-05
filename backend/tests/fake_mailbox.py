@@ -41,6 +41,7 @@ class FakeMailbox:
         self.moved: list[tuple[int, str]] = []
         self.marked_read: list[int] = []
         self.flagged: list[int] = []
+        self.fetched: list[int] = []
         self.activity = threading.Event()  # set when "new mail" arrives
         self.connect_error: Exception | None = None
         self.connects = 0
@@ -68,6 +69,7 @@ class FakeMailbox:
         return [header for header, _ in self.messages.values()]
 
     def fetch(self, uid: int) -> bytes:
+        self.fetched.append(uid)
         return self.messages[uid][1]
 
     def move(self, uid: int, folder: str, *, flagged: bool = False) -> None:

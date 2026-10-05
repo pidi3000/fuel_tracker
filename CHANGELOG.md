@@ -10,6 +10,12 @@ details are linked from each release on GitHub.
 - The history has its own page (*History* in the menu). On the start page, the receipts
   without a fuel-up are now at the top, above the fuel-ups in progress.
 
+### Fixed
+
+- Receipt emails now stay in the inbox until their receipt is linked to a fuel-up (or
+  ignored), as described, and are then marked as read and moved. Before, they were moved as
+  soon as they arrived, so an email without a fuel-up yet was already out of the inbox.
+
 ## 0.2.0 - 2026-10-05
 
 ### New

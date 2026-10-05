@@ -47,6 +47,9 @@ class Receipt(Base):
     # Set when the PDF couldn't be read at all
     parse_error: Mapped[str | None] = mapped_column(Text)
 
+    # Whether the email has been moved out of the inbox. It stays there until the receipt is
+    # linked to a fuel-up (or ignored).
+    email_moved: Mapped[bool] = mapped_column(Boolean, default=False)
     # Whether the user was told that this receipt has no fuel-up
     notified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.types import utcnow
@@ -74,6 +74,37 @@ def pdf_path(ctx: ReceiptContext, receipt: Receipt) -> Path | None:
 async def find_by_message_id(session: AsyncSession, message_id: str) -> Receipt | None:
     result = await session.execute(select(Receipt).where(Receipt.message_id == message_id))
     return result.scalar_one_or_none()
+
+
+async def receipts_of_email(session: AsyncSession, message_id: str) -> list[Receipt]:
+    """The receipts stored from one email (one per PDF attached)."""
+    result = await session.execute(
+        select(Receipt).where(
+            or_(
+                Receipt.message_id == message_id,
+                Receipt.message_id.startswith(f"{message_id}#", autoescape=True),
+            )
+        )
+    )
+    return list(result.scalars())
+
+
+def email_may_move(receipts: list[Receipt]) -> bool:
+    """An email leaves the inbox once all its receipts are linked to a fuel-up or ignored."""
+    return bool(receipts) and all(
+        r.state in (ReceiptState.MATCHED, ReceiptState.IGNORED) for r in receipts
+    )
+
+
+async def pending_email_moves(session: AsyncSession) -> set[int]:
+    """Receipts that are linked or ignored, but whose email is still in the inbox."""
+    result = await session.execute(
+        select(Receipt.id).where(
+            Receipt.state.in_([ReceiptState.MATCHED, ReceiptState.IGNORED]),
+            Receipt.email_moved.is_(False),
+        )
+    )
+    return set(result.scalars())
 
 
 async def find_by_transaction(session: AsyncSession, transaction_id: str) -> Receipt | None:

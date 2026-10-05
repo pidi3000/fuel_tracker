@@ -32,6 +32,7 @@ from app.services.receipts import (
     ReceiptContext,
     expire_waiting_fuel_ups,
     notify_lonely_receipts,
+    pending_email_moves,
     rematch_waiting,
 )
 from app.services.runtime_settings import RuntimeSettings
@@ -167,8 +168,24 @@ def create_app(
                 if await announce_update(session, events, status):
                     await session.commit()
 
+        asked_to_move: set[int] = set()  # receipts whose email the mail watcher was asked to move
+
+        async def move_linked_emails() -> None:
+            # An email stays in the inbox until its receipt is linked to a fuel-up or ignored.
+            # Then the mail watcher is asked to move it, without waiting for its next check.
+            watcher = services.mail_watcher
+            if watcher is None:
+                return
+            async with sessionmaker() as session:
+                pending = await pending_email_moves(session)
+            if pending - asked_to_move:
+                watcher.check_now()
+            asked_to_move.intersection_update(pending)
+            asked_to_move.update(pending)
+
         processor.periodic_jobs.append(match_and_expire)
         processor.periodic_jobs.append(clean)
+        processor.periodic_jobs.append(move_linked_emails)
         processor.periodic_jobs.append(look_for_updates)
 
         tasks: list[asyncio.Task] = []

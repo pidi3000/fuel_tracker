@@ -185,14 +185,25 @@ def pdf_attachments(message: EmailMessage) -> list[tuple[str, bytes]]:
     return found
 
 
-class Outcome(enum.StrEnum):
-    LEFT = "left"  # not handled; the email stays in the inbox
-    DONE = "done"  # stored (and matched); the email can be moved away
-    DUPLICATE = "duplicate"  # a receipt that was received before; move it, but flag it
+class Action(enum.StrEnum):
+    LEFT = "left"  # can't be handled (no PDF); the email stays and is skipped
+    WAITING = "waiting"  # stored, but not linked to a fuel-up yet; the email stays in the inbox
+    DONE = "done"  # linked to a fuel-up (or ignored): mark it as read and move it
+    DUPLICATE = "duplicate"  # received before: flag it, mark it as read and move it
+
+
+@dataclass
+class Handled:
+    action: Action
+    message_id: str | None = None
 
 
 class ReceiptMailHandler:
-    """What happens to one receipt email (on the app's event loop)."""
+    """What happens to one receipt email (on the app's event loop).
+
+    An email stays in the inbox while its receipt waits for a fuel-up. It is moved away once the
+    receipt is linked to a fuel-up or ignored, so the inbox only holds what still needs attention.
+    """
 
     def __init__(
         self,
@@ -204,7 +215,38 @@ class ReceiptMailHandler:
         self._ctx = ctx
         self._on_change = on_change
 
-    async def handle(self, raw: bytes, header_message_id: str | None) -> Outcome:
+    async def known(self, header_message_id: str | None, subject: str) -> Handled | None:
+        """What to do with an email whose receipt is already stored, judged by its header alone.
+
+        None if the email isn't known (or has no Message-ID header): it has to be read.
+        """
+        if not header_message_id:
+            return None
+        message_id = receipt_service.message_id_of(header_message_id, b"")
+        async with self._sessionmaker() as session:
+            stored = await receipt_service.receipts_of_email(session, message_id)
+            if not stored:
+                return None
+            handled = await self._decide(session, message_id, stored, subject)
+            await session.commit()
+            return handled
+
+    async def _decide(
+        self,
+        session: AsyncSession,
+        message_id: str,
+        stored: list[Receipt],
+        subject: str,
+    ) -> Handled:
+        if any(r.email_moved for r in stored):
+            # Its email was moved before, so this is a second copy of it
+            await self._announce_duplicate(session, subject)
+            return Handled(Action.DUPLICATE, message_id)
+        if receipt_service.email_may_move(stored):
+            return Handled(Action.DONE, message_id)
+        return Handled(Action.WAITING, message_id)
+
+    async def handle(self, raw: bytes, header_message_id: str | None) -> Handled:
         """Store the receipt and match it. Says what is to be done with the email."""
         message = email.message_from_bytes(raw, policy=policy.default)
         subject = str(message["Subject"] or "")
@@ -214,15 +256,14 @@ class ReceiptMailHandler:
         pdfs = pdf_attachments(message)
         if not pdfs:
             logger.warning("Email %r looks like a receipt but has no PDF attached", subject)
-            return Outcome.LEFT
+            return Handled(Action.LEFT)
 
         stored_ids: list[int] = []
         async with self._sessionmaker() as session:
-            if await receipt_service.find_by_message_id(session, message_id):
-                # Stored earlier: the same email again, or only the move was missing
-                await self._announce_duplicate(session, subject)
+            if stored := await receipt_service.receipts_of_email(session, message_id):
+                handled = await self._decide(session, message_id, stored, subject)
                 await session.commit()
-                return Outcome.DUPLICATE
+                return handled
             for index, (name, data) in enumerate(pdfs):
                 receipt = await receipt_service.store_receipt(
                     session,
@@ -245,12 +286,13 @@ class ReceiptMailHandler:
                         "or log the fuel-up by hand.",
                     )
             if not stored_ids:
+                # Every receipt in it was received in another email before
                 await self._announce_duplicate(session, subject)
             await session.commit()
+        if not stored_ids:
+            return Handled(Action.DUPLICATE)
         for receipt_id in stored_ids:
             self._ctx.events.publish("receipt", id=receipt_id)
-        if not stored_ids:
-            return Outcome.DUPLICATE
 
         # Matching has its own transaction: a problem there must not undo the stored receipt.
         # (Waiting fuel-ups are also matched again regularly.)
@@ -264,7 +306,21 @@ class ReceiptMailHandler:
         except Exception:
             logger.exception("Matching a new receipt failed")
         self._on_change()
-        return Outcome.DONE
+
+        async with self._sessionmaker() as session:
+            stored = await receipt_service.receipts_of_email(session, message_id)
+        if receipt_service.email_may_move(stored):
+            return Handled(Action.DONE, message_id)
+        return Handled(Action.WAITING, message_id)
+
+    async def mark_moved(self, message_id: str | None) -> None:
+        """Remember that the email is out of the inbox, so a second copy is noticed."""
+        if message_id is None:
+            return
+        async with self._sessionmaker() as session:
+            for receipt in await receipt_service.receipts_of_email(session, message_id):
+                receipt.email_moved = True
+            await session.commit()
 
     async def _announce_duplicate(self, session: AsyncSession, subject: str) -> None:
         await notifications.notify(
@@ -370,13 +426,17 @@ class MailWatcher:
             if header.uid in skipped or not self.is_receipt(header):
                 continue
             try:
-                raw = mailbox.fetch(header.uid)
-                outcome = self._call(self._handler.handle(raw, header.message_id))
-                if outcome == Outcome.LEFT:
+                # An email whose receipt is stored is judged by its header; others are read
+                handled = self._call(self._handler.known(header.message_id, header.subject))
+                if handled is None:
+                    raw = mailbox.fetch(header.uid)
+                    handled = self._call(self._handler.handle(raw, header.message_id))
+                if handled.action == Action.LEFT:
                     skipped.add(header.uid)
-                else:
-                    flagged = outcome == Outcome.DUPLICATE
+                elif handled.action != Action.WAITING:
+                    flagged = handled.action == Action.DUPLICATE
                     mailbox.move(header.uid, self._processed_folder, flagged=flagged)
+                    self._call(self._handler.mark_moved(handled.message_id))
                     moved += 1
             except Exception:
                 # The mail stays where it is and is tried again at the next check

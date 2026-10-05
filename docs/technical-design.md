@@ -161,17 +161,27 @@ For each new email:
    (e.g. *Your receipt from Wednesday, September 23, 2026 | PACE Pay*). Other
    emails are left alone.
 2. Extract the receipt data from the PDF (below) and store it.
-3. **Mark the email as read and move it** to the processed folder (created if
-   missing).
-4. Match it to a pending fuel-up, or list it as unmatched.
+3. Match it to a pending fuel-up, or list it as unmatched.
+4. **The email stays in the inbox until its receipt is linked to a fuel-up (or
+   ignored).** Then it is marked as read and moved to the processed folder
+   (created if missing). The inbox therefore only holds receipts that still
+   need attention.
 
-A repeated receipt (the same Message-ID, or a receipt with a transaction ID that
-is already stored) is not stored again. It raises a notification for the admins
-and its email is flagged (`\Flagged`) before it is moved.
+How an email is told from a second copy: each stored receipt remembers its
+Message-ID and whether its email was moved (`email_moved`).
 
-The email is moved as soon as the receipt is stored. From then on, the stored
-copy is used, so a crash or a LubeLogger outage can't cause the same email to be
-processed twice.
+- An email whose receipt is stored but not linked yet is *waiting*. It is left
+  alone and, when the header carries a Message-ID, isn't even downloaded again.
+- Once its receipt is linked or ignored, the email is moved and `email_moved` is
+  set. A periodic job notices linked receipts whose email is still in the inbox
+  and asks the watcher to look right away, so it moves within seconds.
+- A *repeated* receipt is not stored again: the same Message-ID after the first
+  email was moved, or a different email with a transaction ID that is already
+  stored. It raises a notification for the admins, and its email is flagged
+  (`\Flagged`), marked as read and moved at once.
+
+The stored copy is what counts from the moment the receipt is stored, so a
+crash or a LubeLogger outage can't cause the same email to be processed twice.
 
 ## Receipt parsing
 
