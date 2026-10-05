@@ -44,7 +44,7 @@ Each fuel-up has these fields, entered in the web UI or sent through the API:
 | Missed fuel-up | LubeLogger's flag. Defaults to *no* |
 | Date and time | Defaults to *now*, in the device's local time. Typed or picked from a calendar, always in ISO format (`2026-10-05 17:08`: year first, 24-hour clock, weeks starting on Monday), whatever language the browser uses |
 | GPS location | Requested from the browser (the server always runs on HTTPS) or sent by the Shortcut |
-| Payment source | **Pace Drive email receipt** or **Manual** (the Pace Drive API is postponed) |
+| Payment source | **Pace Drive email receipt** or **Manual** (the Pace Drive API is postponed). The web UI starts with the email receipt selected; the Shortcut asks, and the API defaults to *Manual* |
 | Manual payment details | Only for *Manual*: fuel type (from the configured list), fuel amount and total price. The UI shows the configured units next to the inputs |
 
 The web UI and the Shortcut both use the same API. It responds immediately:
