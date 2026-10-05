@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     # Run the background workers (tests switch them off)
     background_workers: bool = True
 
+    # --- looking for a newer Fuel Tracker image ---
+    update_check: bool = True
+    # The image to look at (ghcr.io-style registry; the package must be readable without login)
+    update_check_image: str = "ghcr.io/pidi3000/fuel_tracker"
+
     # --- LubeLogger ---
     lubelogger_url: str = ""
     lubelogger_api_key: str = ""

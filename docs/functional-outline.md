@@ -211,6 +211,13 @@ controlled in Fuel Tracker.
 - Notification targets
 - Users, roles and vehicle access
 
+### Update check
+
+The app looks daily whether a newer image of itself is available and tells the
+admins (settings page and a notification). A release image only looks for newer
+release images, and a test image only for a newer test image. Updating itself
+is not done: pull the new image and restart.
+
 ## Later
 
 - Pace Drive API as a payment source

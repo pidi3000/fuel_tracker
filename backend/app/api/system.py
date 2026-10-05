@@ -1,5 +1,7 @@
 """Health and version endpoints."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -7,6 +9,7 @@ from sqlalchemy import text
 from app.api.deps import AdminUser, ServicesDep
 from app.core.version import get_version
 from app.services.lubelogger import LubeLoggerError
+from app.services.updates import announce_update
 
 router = APIRouter(tags=["system"])
 
@@ -93,3 +96,37 @@ async def _lubelogger_status(services: ServicesDep) -> ConnectionStatus:
             ),
         )
     return ConnectionStatus(state="ok")
+
+
+class UpdateOut(BaseModel):
+    enabled: bool
+    channel: str | None = None  # "release", "test" or "dev" (a build that can't be checked)
+    current: str
+    latest: str | None = None
+    available: bool = False
+    checked_at: datetime | None = None
+    error: str | None = None
+
+
+def _update_out(services: ServicesDep) -> UpdateOut:
+    checker = services.updates
+    if checker is None:
+        return UpdateOut(enabled=False, current=get_version())
+    return UpdateOut(enabled=True, **vars(checker.status))
+
+
+@router.get("/update")
+async def update_status(_: AdminUser, services: ServicesDep) -> UpdateOut:
+    """What the last look for a newer image found."""
+    return _update_out(services)
+
+
+@router.post("/update/check")
+async def check_for_update(_: AdminUser, services: ServicesDep) -> UpdateOut:
+    """Look for a newer image now."""
+    if services.updates is not None:
+        status = await services.updates.check()
+        async with services.sessionmaker() as session:
+            if await announce_update(session, services.events, status):
+                await session.commit()
+    return _update_out(services)
