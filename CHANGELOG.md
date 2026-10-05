@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### New
 
+- Dates and times are shown in ISO format (2026-10-05, 17:08), whatever language the browser
+  uses, and the date and time of a new fuel-up is typed in that format.
 - Files attached to a record in LubeLogger, such as the receipt, are linked in the history
   and open straight from Fuel Tracker.
 - The history can be filtered by vehicle.
