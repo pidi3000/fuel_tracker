@@ -6,6 +6,7 @@ import { getJson, postJson } from '../api'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, live, onEvent } from '../events'
 import {
+  addressMapUrl,
   attentionTitle,
   formatDate,
   formatDateTime,
@@ -235,7 +236,11 @@ const currency = computed(() => reference.fuel?.currency ?? 'EUR')
               {{ formatMoney(record.cost, currency) }}
             </div>
           </div>
-          <div v-if="record.address" class="small muted">{{ record.address }}</div>
+          <div v-if="record.address" class="small muted">
+            <a :href="addressMapUrl(record.address)" target="_blank" rel="noopener">{{
+              record.address
+            }}</a>
+          </div>
         </li>
       </ul>
       <button

@@ -7,6 +7,7 @@ import FuelUpForm from '../components/FuelUpForm.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, onEvent } from '../events'
 import {
+  addressMapUrl,
   attentionTitle,
   coordinatesMapUrl,
   formatDateTime,
@@ -222,7 +223,11 @@ const paymentLabel = computed(() =>
             </tr>
             <tr v-if="fuelUp.address">
               <th>Station</th>
-              <td>{{ fuelUp.address }}</td>
+              <td>
+                <a :href="addressMapUrl(fuelUp.address)" target="_blank" rel="noopener">{{
+                  fuelUp.address
+                }}</a>
+              </td>
             </tr>
             <tr v-if="receipt">
               <th>Receipt</th>

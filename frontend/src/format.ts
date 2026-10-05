@@ -63,3 +63,8 @@ export function attentionTitle(code: string | null): string {
 export function coordinatesMapUrl(latitude: number, longitude: number): string {
   return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`
 }
+
+/** An OpenStreetMap search for a postal address, e.g. the station address on a receipt. */
+export function addressMapUrl(address: string): string {
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`
+}
