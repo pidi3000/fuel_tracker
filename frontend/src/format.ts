@@ -58,3 +58,8 @@ export function attentionTitle(code: string | null): string {
       return 'Needs attention'
   }
 }
+
+/** An OpenStreetMap link showing a GPS position. */
+export function coordinatesMapUrl(latitude: number, longitude: number): string {
+  return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=17/${latitude}/${longitude}`
+}
