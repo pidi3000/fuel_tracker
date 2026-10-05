@@ -51,6 +51,7 @@ async function signOut() {
       <template v-if="auth.user">
         <nav>
           <RouterLink to="/">Fuel-ups</RouterLink>
+          <RouterLink to="/history">History</RouterLink>
           <RouterLink to="/new">New</RouterLink>
           <RouterLink to="/notifications" class="bell">
             Notifications<span v-if="notifications.unread" class="count">{{

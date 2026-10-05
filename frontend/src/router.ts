@@ -39,6 +39,12 @@ export const router = createRouter({
       meta: { title: 'Fuel-ups' },
     },
     {
+      path: '/history',
+      name: 'history',
+      component: () => import('./views/HistoryView.vue'),
+      meta: { title: 'History' },
+    },
+    {
       path: '/fuel-ups/:id',
       name: 'fuel-up',
       component: () => import('./views/FuelUpView.vue'),

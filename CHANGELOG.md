@@ -3,6 +3,13 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
+## Unreleased
+
+### New
+
+- The history has its own page (*History* in the menu). On the start page, the receipts
+  without a fuel-up are now at the top, above the fuel-ups in progress.
+
 ## 0.2.0 - 2026-10-05
 
 ### New
