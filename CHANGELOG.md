@@ -7,6 +7,7 @@ details are linked from each release on GitHub.
 
 ### New
 
+- The history can be filtered by vehicle.
 - When you add a fuel-up, the location is a link that opens it on OpenStreetMap, so you can
   check right away that it is roughly right.
 - The station address from a receipt is now a link that opens it on OpenStreetMap, like the
