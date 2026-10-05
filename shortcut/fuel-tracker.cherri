@@ -1,0 +1,103 @@
+// The Apple Shortcut that adds a fuel-up. Source for the Cherri compiler (cherrilang.org);
+// build it with `python3 shortcut/build.py` (see docs/shortcut.md).
+
+#include 'actions/text'
+#include 'actions/location'
+#include 'actions/web'
+
+#define name Fuel Tracker
+#define glyph fuelstation
+#define color green
+
+// Asked when the Shortcut is imported
+#question serverQ "Address of your Fuel Tracker server, for example https://fuel.example.com (no slash at the end)" "https://"
+#question tokenQ "Your API token (create one in Fuel Tracker under Account)" ""
+
+const server = text(serverQ)
+const token = text(tokenQ)
+
+// Where you are (iOS asks for permission the first time). The decimals are sent as text with a
+// decimal point: as a number, a phone set to German turns 52,34 into 5234 on the way
+const here = getCurrentLocation()
+const latitude = getLocationDetail(here, "Latitude")
+const longitude = getLocationDetail(here, "Longitude")
+const latitudeText = replaceText(",", ".", "{latitude}")
+const longitudeText = replaceText(",", ".", "{longitude}")
+
+// Which vehicle: the names to choose from, then the id of the chosen one
+const vehicles = downloadURL("{server}/api/vehicles", {"Authorization": "Bearer {token}"})
+@names = []
+for vehicle in vehicles {
+    const listed = getDictionary(@vehicle)
+    const vehicleName = getValue(listed, "name")
+    @names += vehicleName
+}
+@chosen = chooseFromList(@names, "Vehicle")
+@chosenName = "{@chosen}"
+@vehicleId = 0
+for vehicle in vehicles {
+    const entry = getDictionary(@vehicle)
+    const candidateName = getValue(entry, "name")
+    @candidate = "{candidateName}"
+    if @candidate == @chosenName {
+        const candidateId = getValue(entry, "id")
+        @vehicleId = candidateId
+    }
+}
+
+// The odometer reading, with the last one as a hint
+const last = downloadURL("{server}/api/vehicles/{@vehicleId}/odometer", {"Authorization": "Bearer {token}"})
+const lastReading = getDictionary(last)
+const lastOdometer = getValue(lastReading, "odometer")
+@odometer = prompt("Odometer reading (last: {lastOdometer})", "Number")
+
+// Send it. The whole numbers (vehicle and odometer) are made real JSON numbers by build.py
+@response = ""
+menu "How do you pay?" {
+    item "Pace Drive email receipt":
+        @response = jsonRequest("{server}/api/fuel-ups", "POST", {
+            "vehicle_id": "{@vehicleId}",
+            "odometer": "{@odometer}",
+            "latitude": "{latitudeText}",
+            "longitude": "{longitudeText}",
+            "payment_source": "email_receipt"
+        }, {"Authorization": "Bearer {token}"})
+    item "Manual":
+        const reference = downloadURL("{server}/api/fuel-types", {"Authorization": "Bearer {token}"})
+        const fuel = getDictionary(reference)
+        const fuelTypes = getValue(fuel, "fuel_types")
+        const volumeUnit = getValue(fuel, "volume_unit")
+        const currency = getValue(fuel, "currency")
+        const fuelType = chooseFromList(fuelTypes, "Fuel type")
+        @quantity = prompt("Amount of fuel ({volumeUnit})", "Number")
+        @price = prompt("Total price ({currency})", "Number")
+        const quantityText = replaceText(",", ".", "{@quantity}")
+        const priceText = replaceText(",", ".", "{@price}")
+        @response = jsonRequest("{server}/api/fuel-ups", "POST", {
+            "vehicle_id": "{@vehicleId}",
+            "odometer": "{@odometer}",
+            "latitude": "{latitudeText}",
+            "longitude": "{longitudeText}",
+            "payment_source": "manual",
+            "fuel_type": "{fuelType}",
+            "quantity": "{quantityText}",
+            "total_price": "{priceText}"
+        }, {"Authorization": "Bearer {token}"})
+}
+
+// Created (the server returns the fuel-up), or why not (it explains in `detail`)
+const answer = getDictionary(@response)
+const createdId = getValue(answer, "id")
+if createdId {
+    const savedVehicle = getValue(answer, "vehicle_name")
+    const savedOdometer = getValue(answer, "odometer")
+    const savedNote = getValue(answer, "attention_message")
+    alert("{savedVehicle}, {savedOdometer}\n{savedNote}", "Fuel-up created")
+} else {
+    const problem = getValue(answer, "detail")
+    if problem {
+        alert("{problem}", "Fuel-up not saved")
+    } else {
+        alert("{@response}", "Fuel-up not saved")
+    }
+}
