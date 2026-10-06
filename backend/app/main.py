@@ -188,6 +188,7 @@ def create_app(
         processor.periodic_jobs.append(clean)
         processor.periodic_jobs.append(move_linked_emails)
         processor.periodic_jobs.append(look_for_updates)
+        processor.periodic_jobs.append(vehicles.refresh_odometers)
 
         tasks: list[asyncio.Task] = []
         if settings.background_workers:

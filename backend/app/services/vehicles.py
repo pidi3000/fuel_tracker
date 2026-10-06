@@ -2,9 +2,10 @@
 
 The vehicle list is kept for a minute, so a short LubeLogger outage doesn't block users.
 
-The last odometer reading of each vehicle is remembered. A reading less than an hour old is used as
-it is. An older one is asked for again, so a reading changed in LubeLogger in the meantime is picked
-up. If LubeLogger can't be reached then, the last reading seen is used, however old it is.
+The last odometer reading of each vehicle is remembered. LubeLogger is always asked first and the
+remembered reading updated with its answer. If LubeLogger can't be reached, the remembered reading
+is used, however old it is. A background job asks again when the last pull is over an hour ago, so
+the reading stays current while nobody adds a fuel-up.
 """
 
 import time
@@ -18,7 +19,7 @@ from app.services.lubelogger import (
     Vehicle,
 )
 
-# A saved odometer reading is used as it is for this long; after that LubeLogger is asked again
+# The background job asks LubeLogger for the readings again when the last pull is this old
 ODOMETER_REFRESH_SECONDS = 3600
 
 
@@ -54,6 +55,7 @@ class VehicleDirectory:
         self._cache: list[Vehicle] | None = None
         self._fetched_at = 0.0
         self._odometers: dict[int, tuple[int, float]] = {}  # vehicle id: (reading, when seen)
+        self._last_refresh: float | None = None  # when the readings were last all pulled
 
     async def all(self) -> list[Vehicle]:
         """All vehicles. Falls back to the last known list if LubeLogger can't be reached."""
@@ -74,25 +76,48 @@ class VehicleDirectory:
     async def latest_odometer(self, vehicle_id: int) -> OdometerReading:
         """The last odometer reading of a vehicle in LubeLogger.
 
-        A reading seen less than an hour ago is used without asking. Otherwise LubeLogger is asked,
-        and if it can't be reached the last reading seen is used, however old it is. Only a vehicle
-        that was never seen raises the error.
+        LubeLogger is always asked first and the saved reading updated. If it can't be reached (or
+        was found offline a moment ago), the saved reading is used, however old it is. Only a
+        vehicle that was never seen raises the error.
         """
         if self._client is None:
             raise LubeLoggerError(
                 "LubeLogger isn't set up. Set LUBELOGGER_URL and LUBELOGGER_API_KEY."
             )
-        seen = self._odometers.get(vehicle_id)
-        if seen is not None and (age := self._clock() - seen[1]) < self._odometer_refresh_after:
-            return OdometerReading(seen[0], saved=False, age_seconds=age)
         try:
             value = await self._client.latest_odometer(vehicle_id)
         except LubeLoggerUnavailable:
+            seen = self._odometers.get(vehicle_id)
             if seen is None:
                 raise
             return OdometerReading(seen[0], saved=True, age_seconds=self._clock() - seen[1])
         self._odometers[vehicle_id] = (value, self._clock())
         return OdometerReading(value, saved=False)
+
+    async def refresh_odometers(self) -> bool:
+        """Ask LubeLogger for every vehicle's reading if the last pull is over an hour ago.
+
+        Returns whether it asked. Does nothing while LubeLogger can't be reached; the saved
+        readings stay as they are and it is tried again at the next call.
+        """
+        if self._client is None:
+            return False
+        now = self._clock()
+        if (
+            self._last_refresh is not None
+            and now - self._last_refresh < self._odometer_refresh_after
+        ):
+            return False
+        try:
+            for vehicle in await self.all():
+                self._odometers[vehicle.id] = (
+                    await self._client.latest_odometer(vehicle.id),
+                    self._clock(),
+                )
+        except LubeLoggerError:
+            return False
+        self._last_refresh = now
+        return True
 
     def note_odometer(self, vehicle_id: int, value: int) -> None:
         """A record with this reading was just written to LubeLogger: the saved one can't be lower.

@@ -155,15 +155,16 @@ A LubeLogger that can't be reached must not hold the web UI up (`app/services/lu
   is up), and *Check again* on the settings page always asks.
 - **Vehicle list.** Kept for 60 seconds, and the last list is used while
   LubeLogger can't be reached.
-- **Last odometer reading.** Each reading seen is remembered per vehicle. A
-  reading less than an hour old is used as it is, without asking LubeLogger.
-  After an hour LubeLogger is asked again, so a reading changed there is picked
-  up. If LubeLogger can't be reached then, the last reading seen is used,
-  however old it is (the form shows it as the last reading seen, with its age,
-  and a new fuel-up is checked against it; the reading can only have gone up
-  since, so a lower one is wrong in any case). When a fuel-up is written to
-  LubeLogger, the remembered reading is raised to it. The check when sending to
-  LubeLogger never uses the remembered reading.
+- **Last odometer reading.** Each reading seen is remembered per vehicle.
+  LubeLogger is always asked first and the remembered reading updated with its
+  answer. If LubeLogger can't be reached (or is in its 30-second pause), the
+  remembered reading is used, however old it is (the form shows it as the last
+  reading seen, with its age, and a new fuel-up is checked against it; the
+  reading can only have gone up since, so a lower one is wrong in any case). A
+  background job asks LubeLogger for every vehicle again when the last pull is
+  over an hour ago, so the reading stays current while nobody adds a fuel-up.
+  When a fuel-up is written to LubeLogger, the remembered reading is raised to
+  it. The check when sending to LubeLogger never uses the remembered reading.
 
 Together, adding a fuel-up with LubeLogger down takes about 3 seconds.
 
