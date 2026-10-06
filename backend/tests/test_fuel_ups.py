@@ -305,13 +305,13 @@ async def test_odometer_hint_and_reference_data(api: AppUnderTest) -> None:
     assert (await api.client.get("/api/vehicles/1/odometer")).json() == {
         "odometer": 20000,
         "saved": False,
-        "saved_minutes_ago": None,
+        "saved_age": None,
     }
     api.fake.down = True
     assert (await api.client.get("/api/vehicles/1/odometer")).json() == {
-        "odometer": 20000,  # the reading seen a moment ago, as LubeLogger can't be reached
-        "saved": True,
-        "saved_minutes_ago": 0,
+        "odometer": 20000,  # seen a moment ago, so LubeLogger isn't even asked
+        "saved": False,
+        "saved_age": None,
     }
 
     reference = (await api.client.get("/api/fuel-types")).json()

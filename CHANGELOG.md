@@ -7,9 +7,11 @@ details are linked from each release on GitHub.
 
 ### New
 
-- The last odometer reading of each vehicle is remembered. While LubeLogger can't be reached it
-  is used for the hint in the form and to check a new fuel-up, if it is not older than an hour.
-  LubeLogger is always asked first, so a reading changed there is picked up at once.
+- The last odometer reading of each vehicle is remembered. A reading less than an hour old is
+  used as it is; after that LubeLogger is asked again, so a reading changed there is picked up.
+  If LubeLogger can't be reached then, the last reading seen is used, however old it is, for
+  the hint in the form and to check a new fuel-up. (The check when the fuel-up is sent to
+  LubeLogger always uses LubeLogger's own reading.)
 
 ### Fixed
 

@@ -193,5 +193,8 @@ async def test_an_unchanged_odometer_is_not_checked_again(api: AppUnderTest) -> 
     api.fake.other_odometer[1] = 16000  # LubeLogger moved on
     same = await api.client.patch(f"/api/fuel-ups/{created['id']}", json={"odometer": 15000})
     assert same.status_code == 200
+    # The saved reading is only asked about again after an hour; then LubeLogger's counts
+    real_clock = api.services.vehicles._clock
+    api.services.vehicles._clock = lambda: real_clock() + 2 * 3600
     changed = await api.client.patch(f"/api/fuel-ups/{created['id']}", json={"odometer": 15001})
     assert changed.status_code == 422

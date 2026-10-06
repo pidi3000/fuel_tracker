@@ -40,8 +40,8 @@ const fuelType = ref(props.fuelUp?.fuel_type ?? '')
 const quantity = ref(props.fuelUp?.quantity ? String(Number(props.fuelUp.quantity)) : '')
 const price = ref(props.fuelUp?.total_price ?? '')
 const lastOdometer = ref<number | null>(null)
-// Set when LubeLogger can't be reached and the reading is the one seen this many minutes ago
-const savedMinutesAgo = ref<number | null>(null)
+// Set when LubeLogger can't be reached and the reading is the last one seen, this long ago
+const savedAge = ref<string | null>(null)
 
 const location = useGeolocation()
 if (props.fuelUp?.latitude != null && props.fuelUp.longitude != null) {
@@ -87,16 +87,16 @@ watch(
   vehicleId,
   async (id) => {
     lastOdometer.value = null
-    savedMinutesAgo.value = null
+    savedAge.value = null
     if (id === '') return
     try {
       const hint = await getJson<{
         odometer: number | null
         saved: boolean
-        saved_minutes_ago: number | null
+        saved_age: string | null
       }>(`/vehicles/${id}/odometer`)
       lastOdometer.value = hint.odometer
-      savedMinutesAgo.value = hint.saved ? hint.saved_minutes_ago : null
+      savedAge.value = hint.saved ? hint.saved_age : null
     } catch {
       // only a hint
     }
@@ -191,12 +191,12 @@ const locationText = computed(() => {
         autocomplete="off"
       />
       <span v-if="lastOdometer !== null" class="hint">
-        <template v-if="savedMinutesAgo === null">
+        <template v-if="savedAge === null">
           Last reading in LubeLogger: {{ formatNumber(lastOdometer, 0) }}
         </template>
         <template v-else>
-          Last reading seen: {{ formatNumber(lastOdometer, 0) }} ({{ savedMinutesAgo }} min ago;
-          LubeLogger can't be reached)
+          Last reading seen: {{ formatNumber(lastOdometer, 0) }} ({{ savedAge }} ago; LubeLogger
+          can't be reached)
         </template>
       </span>
     </div>

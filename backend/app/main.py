@@ -114,6 +114,7 @@ def create_app(
             runtime,
             events,
             client,
+            vehicles=vehicles,
             gps_field=settings.lubelogger_field_gps,
             address_field=settings.lubelogger_field_address,
             receipt_dir=settings.data_dir / "receipts",

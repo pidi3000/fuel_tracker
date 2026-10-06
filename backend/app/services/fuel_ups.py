@@ -15,7 +15,7 @@ from app.models import Attention, FuelUp, Notification, PaymentSource, Status, U
 from app.services.events import EventBus
 from app.services.lubelogger import LubeLoggerClient, LubeLoggerError, LubeLoggerUnavailable
 from app.services.runtime_settings import RuntimeSettings
-from app.services.vehicles import VehicleDirectory
+from app.services.vehicles import VehicleDirectory, age_text
 
 # Statuses of fuel-ups that are not in LubeLogger yet
 OPEN_STATUSES = (Status.PENDING, Status.NEEDS_ATTENTION, Status.SENDING, Status.FAILED)
@@ -136,7 +136,7 @@ async def check_odometer(
         # The reading can only have gone up since, so a lower one is wrong in any case
         warnings.append(
             "LubeLogger wasn't reachable, so the odometer reading was only checked against the "
-            f"last one seen ({round(reading.age_seconds / 60)} min ago). "
+            f"last one seen ({age_text(reading.age_seconds)} ago). "
             "It is checked again when the fuel-up is sent."
         )
     if odometer < reading.value:

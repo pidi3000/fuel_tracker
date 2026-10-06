@@ -27,6 +27,7 @@ from app.services.lubelogger import (
     UploadedFile,
 )
 from app.services.runtime_settings import RuntimeSettings
+from app.services.vehicles import VehicleDirectory
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class Processor:
         events: EventBus,
         lubelogger: LubeLoggerClient | None,
         *,
+        vehicles: VehicleDirectory | None = None,
         gps_field: str,
         address_field: str,
         receipt_dir: Path,
@@ -77,6 +79,7 @@ class Processor:
         self._runtime = runtime
         self._events = events
         self._lubelogger = lubelogger
+        self._vehicles = vehicles
         self._gps_field = gps_field
         self._address_field = address_field
         self._receipt_dir = receipt_dir
@@ -228,7 +231,10 @@ class Processor:
             extra_fields=extra_fields,
             files=[uploaded] if uploaded else [],
         )
-        return await client.add_gas_record(fuel_up.vehicle_id, record)
+        record_id = await client.add_gas_record(fuel_up.vehicle_id, record)
+        if self._vehicles is not None:
+            self._vehicles.note_odometer(fuel_up.vehicle_id, fuel_up.odometer)
+        return record_id
 
     async def _receipt_parts(
         self, session: AsyncSession, client: LubeLoggerClient, fuel_up: FuelUp
