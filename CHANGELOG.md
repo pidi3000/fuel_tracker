@@ -3,6 +3,22 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
+## Unreleased
+
+### New
+
+- The last odometer reading of each vehicle is remembered as a backup. LubeLogger is always
+  asked first and the remembered reading updated. If it can't be reached, the remembered
+  reading is used, however old it is, for the hint in the form and to check a new fuel-up. While
+  nobody adds a fuel-up, the reading is pulled from LubeLogger again once an hour. (The check
+  when the fuel-up is sent to LubeLogger always uses LubeLogger's own reading.)
+
+### Fixed
+
+- Adding a fuel-up while LubeLogger can't be reached no longer takes very long. Connecting is
+  given up after 3 seconds (before: 20 seconds for each of several calls), and for 30 seconds
+  after that LubeLogger isn't tried again, so the form and saving answer at once.
+
 ## 0.3.0 - 2026-10-06
 
 ### New

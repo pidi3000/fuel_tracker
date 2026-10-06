@@ -302,9 +302,17 @@ async def test_vehicle_identifier_can_be_an_extra_field(api: AppUnderTest) -> No
 async def test_odometer_hint_and_reference_data(api: AppUnderTest) -> None:
     await sign_in_admin(api)
     api.fake.add_record(1, date="2026-09-01", odometer=20000, fuelConsumed=40, cost=70)
-    assert (await api.client.get("/api/vehicles/1/odometer")).json() == {"odometer": 20000}
+    assert (await api.client.get("/api/vehicles/1/odometer")).json() == {
+        "odometer": 20000,
+        "saved": False,
+        "saved_age": None,
+    }
     api.fake.down = True
-    assert (await api.client.get("/api/vehicles/1/odometer")).json() == {"odometer": None}
+    assert (await api.client.get("/api/vehicles/1/odometer")).json() == {
+        "odometer": 20000,  # LubeLogger can't be asked: the saved reading
+        "saved": True,
+        "saved_age": "0 min",
+    }
 
     reference = (await api.client.get("/api/fuel-types")).json()
     assert reference["fuel_types"] == ["Diesel", "Super", "Super Plus", "Super E10"]

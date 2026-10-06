@@ -36,7 +36,12 @@ def fake_lubelogger() -> FakeLubeLogger:
 
 
 def lubelogger_client(fake: FakeLubeLogger) -> LubeLoggerClient:
-    return LubeLoggerClient("http://lubelogger.test", transport=httpx.MockTransport(fake.handler))
+    # No pause after a failure here: most tests switch the fake on and off between two calls
+    return LubeLoggerClient(
+        "http://lubelogger.test",
+        pause_after_failure=0,
+        transport=httpx.MockTransport(fake.handler),
+    )
 
 
 @pytest.fixture

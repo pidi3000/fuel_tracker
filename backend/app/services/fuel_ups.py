@@ -15,7 +15,7 @@ from app.models import Attention, FuelUp, Notification, PaymentSource, Status, U
 from app.services.events import EventBus
 from app.services.lubelogger import LubeLoggerClient, LubeLoggerError, LubeLoggerUnavailable
 from app.services.runtime_settings import RuntimeSettings
-from app.services.vehicles import VehicleDirectory
+from app.services.vehicles import VehicleDirectory, age_text
 
 # Statuses of fuel-ups that are not in LubeLogger yet
 OPEN_STATUSES = (Status.PENDING, Status.NEEDS_ATTENTION, Status.SENDING, Status.FAILED)
@@ -126,14 +126,24 @@ async def check_odometer(
     if ctx.lubelogger is None:
         return warnings
     try:
-        latest = await ctx.lubelogger.latest_odometer(vehicle_id)
+        reading = await ctx.vehicles.latest_odometer(vehicle_id)
     except LubeLoggerUnavailable:
         # Checked again when the fuel-up is written to LubeLogger
         return ["LubeLogger wasn't reachable, so the odometer reading wasn't checked yet."]
     except LubeLoggerError as exc:
         raise FuelUpError(502, str(exc)) from exc
-    if odometer < latest:
-        raise invalid(f"The odometer reading {odometer} is lower than the last reading ({latest}).")
+    if reading.saved:
+        # The reading can only have gone up since, so a lower one is wrong in any case
+        warnings.append(
+            "LubeLogger wasn't reachable, so the odometer reading was only checked against the "
+            f"last one seen ({age_text(reading.age_seconds)} ago). "
+            "It is checked again when the fuel-up is sent."
+        )
+    if odometer < reading.value:
+        kind = "last reading seen" if reading.saved else "last reading"
+        raise invalid(
+            f"The odometer reading {odometer} is lower than the {kind} ({reading.value})."
+        )
     return warnings
 
 

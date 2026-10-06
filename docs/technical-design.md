@@ -143,6 +143,31 @@ Network errors and 5xx responses from LubeLogger are retried with increasing
 delays (e.g. 1, 5, 15 minutes). A 4xx response (rejected data) fails
 immediately, because retrying won't help.
 
+### When LubeLogger doesn't answer
+
+A LubeLogger that can't be reached must not hold the web UI up (`app/services/lubelogger.py`):
+
+- **Short connect time.** Connecting gets 3 seconds; a slow answer still gets up
+  to 20.
+- **A pause after a failure.** After a call failed to get through, LubeLogger is
+  left alone for 30 seconds: calls in that time fail at once instead of each
+  waiting for its own timeout. A 5xx answer doesn't start a pause (LubeLogger
+  is up), and *Check again* on the settings page always asks.
+- **Vehicle list.** Kept for 60 seconds, and the last list is used while
+  LubeLogger can't be reached.
+- **Last odometer reading.** Each reading seen is remembered per vehicle.
+  LubeLogger is always asked first and the remembered reading updated with its
+  answer. If LubeLogger can't be reached (or is in its 30-second pause), the
+  remembered reading is used, however old it is (the form shows it as the last
+  reading seen, with its age, and a new fuel-up is checked against it; the
+  reading can only have gone up since, so a lower one is wrong in any case). A
+  background job asks LubeLogger for every vehicle again when the last pull is
+  over an hour ago, so the reading stays current while nobody adds a fuel-up.
+  When a fuel-up is written to LubeLogger, the remembered reading is raised to
+  it. The check when sending to LubeLogger never uses the remembered reading.
+
+Together, adding a fuel-up with LubeLogger down takes about 3 seconds.
+
 ## Mail handling
 
 The mail watcher keeps one IMAP connection to the MXroute inbox:

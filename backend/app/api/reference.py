@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.api.deps import CurrentUser, ServicesDep
 from app.services.lubelogger import LubeLoggerError, LubeLoggerUnavailable
+from app.services.vehicles import age_text
 
 router = APIRouter(tags=["reference"])
 
@@ -17,6 +18,9 @@ class VehicleOut(BaseModel):
 
 class OdometerOut(BaseModel):
     odometer: int | None
+    # True when LubeLogger can't be reached and this is the last reading seen, however old
+    saved: bool = False
+    saved_age: str | None = None  # how long ago it was seen, e.g. "20 min" or "3 h"
 
 
 class FuelTypesOut(BaseModel):
@@ -49,7 +53,12 @@ async def last_odometer(vehicle_id: int, user: CurrentUser, services: ServicesDe
     if not user.can_access_vehicle(vehicle_id) or services.lubelogger is None:
         raise HTTPException(404, "Unknown vehicle.")
     try:
-        return OdometerOut(odometer=await services.lubelogger.latest_odometer(vehicle_id))
+        reading = await services.vehicles.latest_odometer(vehicle_id)
+        return OdometerOut(
+            odometer=reading.value,
+            saved=reading.saved,
+            saved_age=age_text(reading.age_seconds) if reading.saved else None,
+        )
     except LubeLoggerUnavailable:
         return OdometerOut(odometer=None)
     except LubeLoggerError as exc:
