@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.types import utcnow
@@ -60,10 +60,16 @@ async def clean_up(
         if events is not None:
             events.publish("fuel_up", id=fuel_up.id)
 
-    # Receipts the user decided not to use. Receipts without a fuel-up wait for a decision.
+    # Receipts the user decided not to use, and those attached to a record that already existed
+    # in LubeLogger (they have no fuel-up here). Receipts without a fuel-up wait for a decision.
     result = await session.execute(
         select(Receipt).where(
-            Receipt.state == ReceiptState.IGNORED, Receipt.created_at <= now - retention
+            or_(
+                (Receipt.state == ReceiptState.IGNORED) & (Receipt.created_at <= now - retention),
+                (Receipt.state == ReceiptState.MATCHED)
+                & Receipt.linked_record_id.is_not(None)
+                & (Receipt.linked_at <= now - retention),
+            )
         )
     )
     for receipt in result.scalars():

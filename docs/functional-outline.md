@@ -101,11 +101,35 @@ LubeLogger, or until it fails.
 A receipt that matches no fuel-up is listed in the web UI as an unmatched
 receipt. The user can either:
 
+- **Match it to a fuel record that already exists in LubeLogger**: for a fuel-up
+  that was entered in LubeLogger by hand. The receipt is attached to that
+  record and no new one is created (see below).
 - **Complete it**: add the vehicle, odometer reading and other fuel-up fields.
   It is then processed like any other fuel-up.
 - **Ignore it**: for example, when paying for a vehicle that isn't tracked in
   LubeLogger. The receipt is moved to the processed folder and no record is
   created.
+
+#### Matching to an existing fuel record
+
+The date decides. A receipt is always older than the record entered for it
+(the receipt is made when paying, the record is entered afterwards, and
+LubeLogger only keeps the day), so only records dated on the day of the receipt
+or later are offered, up to 30 days after it, the closest day first. The fuel
+amount and the total price are checked against the receipt as well, to the cent:
+by default only records where both fit are shown, and a checkbox also shows the
+other records of that period with their differences marked. Records that
+already have a Pace Drive receipt are not offered.
+
+Choosing a record adds to it, and keeps everything else as it is:
+
+- the receipt PDF as an attachment,
+- the line *PaceDrive Transaction ID: …* in the notes, so the receipt is never
+  used twice, and
+- the station and address in the *Address* extra field, if that is empty.
+
+The receipt then counts as used: its email is marked as read and moved, like
+for a fuel-up.
 
 ### Manual payment data
 

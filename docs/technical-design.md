@@ -221,6 +221,30 @@ A receipt matches a fuel-up when:
 The closest match in time wins. Matching runs both when a receipt arrives and
 when a fuel-up is created, so the order in which they arrive doesn't matter.
 
+### To an existing fuel record
+
+A receipt without a fuel-up can also be attached to a fuel record that was
+entered in LubeLogger by hand (`app/services/record_matching.py`). The records
+of the vehicles the user may use are read from LubeLogger (`gasrecords/all`) and
+filtered:
+
+- the record's date is the receipt's day (in the configured time zone) or up to
+  30 days later (the receipt is always older than the entry), and
+- the fuel amount and total price are within 0.01 of the receipt's, when the
+  unit and currency are the configured ones. `include_other_amounts` drops this
+  condition and reports per record which of the two fits.
+
+They are sorted by days after the receipt, then by how many of the two fit.
+Records whose notes already carry a `PaceDrive Transaction ID:` line are left out.
+
+Choosing a record uploads the PDF and replaces the record with
+`PUT /api/vehicle/gasrecords/update`. LubeLogger replaces the whole record, so the
+body is the record as LubeLogger sent it, with only these changed: the notes get
+the transaction ID line, the files get the PDF, and the address extra field is
+filled if empty. The receipt becomes `matched` (with `linked_vehicle_id`,
+`linked_record_id`, `linked_at`), which also lets its email leave the inbox.
+The receipt is deleted after the grace period, like an ignored one.
+
 ## API
 
 All endpoints are under `/api`, return JSON and are documented automatically
@@ -252,6 +276,8 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
 | `GET` | `/api/receipts/{id}`, `/api/receipts/{id}/pdf` | One receipt, and its PDF |
 | `POST` | `/api/receipts/{id}/complete`, `/api/receipts/{id}/ignore` | Turn a receipt into a fuel-up / ignore it |
+| `GET` | `/api/receipts/{id}/record-candidates` | Fuel records in LubeLogger the receipt may belong to (`days`, `include_other_amounts`) |
+| `POST` | `/api/receipts/{id}/link-record` | Attach the receipt to one of them (`vehicle_id`, `record_id`) |
 | `GET`, `PUT`/`DELETE` | `/api/settings`, `/api/settings/{key}` | Effective settings and read-only connection details / set or reset a web UI override (admin) |
 | `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
 

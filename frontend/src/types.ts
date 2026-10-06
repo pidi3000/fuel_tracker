@@ -90,6 +90,24 @@ export interface Receipt {
   created_at: string
   fuel_up_id: number | null
   has_pdf: boolean
+  linked_vehicle_id: number | null
+  linked_record_id: number | null
+}
+
+/** A fuel record in LubeLogger that a receipt may belong to. */
+export interface RecordCandidate {
+  vehicle_id: number
+  vehicle_name: string
+  record_id: number
+  date: string
+  odometer: number
+  fuel_consumed: string
+  cost: string
+  notes: string
+  has_files: boolean
+  days_after: number
+  amount_matches: boolean
+  price_matches: boolean
 }
 
 export interface HistoryRecord {

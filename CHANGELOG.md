@@ -7,6 +7,11 @@ details are linked from each release on GitHub.
 
 ### New
 
+- A receipt can be matched to a fuel record that already exists in LubeLogger, for a fill-up you
+  entered there by hand. On the receipt page, records dated on the day of the receipt or later
+  are offered, the closest day first, and by default only those with the same fuel amount and
+  total price. Choosing one attaches the receipt PDF to the record and adds the transaction ID to
+  its notes; nothing else in the record changes.
 - `RECEIPT_SENDER` can list several addresses, separated by commas, for example to test with
   receipts sent from another email account.
 - A new fuel-up now starts with *Pace Drive email receipt* as the payment, so you only need

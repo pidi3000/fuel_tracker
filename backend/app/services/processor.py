@@ -43,6 +43,10 @@ class SendRefused(LubeLoggerError):
     """The fuel-up can't be written as it is (e.g. the odometer reading is too low)."""
 
 
+# The line in the notes of a LubeLogger record that says which receipt it was made from
+TRANSACTION_MARKER = "PaceDrive Transaction ID: "
+
+
 def build_notes(fuel_up: FuelUp, transaction_id: str | None = None) -> str:
     lines = [
         f"Fuel type: {fuel_up.fuel_type}",
@@ -50,7 +54,7 @@ def build_notes(fuel_up: FuelUp, transaction_id: str | None = None) -> str:
         f"Created by: {fuel_up.created_by_name}",
     ]
     if transaction_id:
-        lines.append(f"PaceDrive Transaction ID: {transaction_id}")
+        lines.append(f"{TRANSACTION_MARKER}{transaction_id}")
     return "\n".join(lines)
 
 
@@ -237,7 +241,7 @@ class Processor:
             return None, None
 
         if receipt.transaction_id:
-            marker = f"PaceDrive Transaction ID: {receipt.transaction_id}"
+            marker = f"{TRANSACTION_MARKER}{receipt.transaction_id}"
             for record in await client.all_gas_records():
                 if marker in record.notes:
                     raise SendRefused(

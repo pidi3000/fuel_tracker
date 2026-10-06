@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, String, Text
+from sqlalchemy import JSON, Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -47,6 +47,11 @@ class Receipt(Base):
     # Set when the PDF couldn't be read at all
     parse_error: Mapped[str | None] = mapped_column(Text)
 
+    # Set when the receipt was matched to a fuel record that already existed in LubeLogger (instead
+    # of being turned into a new fuel-up)
+    linked_vehicle_id: Mapped[int | None] = mapped_column(Integer)
+    linked_record_id: Mapped[int | None] = mapped_column(Integer)
+    linked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     # Whether the email has been moved out of the inbox. It stays there until the receipt is
     # linked to a fuel-up (or ignored).
     email_moved: Mapped[bool] = mapped_column(Boolean, default=False)
