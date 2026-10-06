@@ -117,6 +117,7 @@ class FuelUpOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     editable: bool
+    deletable: bool
     receipt_id: int | None = None
     # Waiting for the receipt, until this time (then it fails)
     waiting_for_receipt: bool = False
@@ -163,6 +164,7 @@ class FuelUpOut(BaseModel):
             created_at=fuel_up.created_at,
             updated_at=fuel_up.updated_at,
             editable=fuel_up.editable,
+            deletable=fuel_up.deletable,
             receipt_id=fuel_up.receipt_id,
             waiting_for_receipt=waiting,
             receipt_deadline=deadline,
@@ -296,3 +298,27 @@ async def retry_fuel_up(
     if services.mail_watcher is not None:
         services.mail_watcher.check_now()
     return FuelUpOut.from_model(fuel_up, services.runtime)
+
+
+@router.delete("/{fuel_up_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_fuel_up(
+    fuel_up_id: int, user: CurrentUser, session: SessionDep, services: ServicesDep
+) -> None:
+    """Delete a fuel-up that hasn't been sent to LubeLogger (waiting, needing attention or failed).
+
+    A receipt it holds goes back to the receipts without a fuel-up.
+    """
+    receipt_id = None
+    try:
+        fuel_up = await service.get_visible(session, user, fuel_up_id)
+        service.ensure_deletable(fuel_up)
+        receipt_id = fuel_up.receipt_id
+        await receipt_service.release_receipt(session, fuel_up)
+        await service.delete(session, services.context, fuel_up)
+    except FuelUpError as exc:
+        await session.rollback()
+        raise http_error(exc) from exc
+    await session.commit()
+    if receipt_id is not None:
+        services.events.publish("receipt", id=receipt_id)
+    services.processor.wake()

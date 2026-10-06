@@ -65,6 +65,7 @@ export interface FuelUp {
   created_at: string
   updated_at: string
   editable: boolean
+  deletable: boolean
   receipt_id: number | null
   waiting_for_receipt: boolean
   receipt_deadline: string | null

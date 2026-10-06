@@ -265,6 +265,7 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET`/`PATCH` | `/api/fuel-ups/{id}` | View / edit a fuel-up before it's sent |
 | `POST` | `/api/fuel-ups/{id}/approve` | Send a reviewed fuel-up to LubeLogger |
 | `POST` | `/api/fuel-ups/{id}/retry` | Retry receipt search or sending |
+| `DELETE` | `/api/fuel-ups/{id}` | Delete a fuel-up that is not in LubeLogger (not Done, not being sent); its receipt is released |
 | `GET` | `/api/history` | Past fuel records from LubeLogger (newest first; `vehicle_id`, `limit`, `offset`) |
 | `GET` | `/api/receipts/unmatched` | Unmatched receipts |
 | `POST` | `/api/receipts/{id}/complete`, `/ignore` | Turn into a fuel-up / ignore |

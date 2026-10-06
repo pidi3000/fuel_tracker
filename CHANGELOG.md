@@ -7,6 +7,9 @@ details are linked from each release on GitHub.
 
 ### New
 
+- A fuel-up that has not been sent to LubeLogger yet (waiting for its receipt, needing attention
+  or failed) can be deleted with the *Delete* button on its page. A receipt it held goes back to
+  the receipts without a fuel-up.
 - A receipt can be matched to a fuel record that already exists in LubeLogger, for a fill-up you
   entered there by hand. On the receipt page, records dated on the day of the receipt or later
   are offered, the closest day first, and by default only those with the same fuel amount and
