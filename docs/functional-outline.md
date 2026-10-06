@@ -179,8 +179,11 @@ The web UI shows two lists:
 
 Until a fuel-up is sent to LubeLogger (status Pending, Needs attention or
 Failed), the user can edit all its fields, such as a mistyped odometer reading.
-Fuel-ups can't be deleted. Once a fuel-up is Done, changes are made in
-LubeLogger.
+Until then it can also be deleted (there is a *Delete* button on the fuel-up).
+Nothing has reached LubeLogger, so nothing there changes; a receipt the fuel-up
+held goes back to the receipts without a fuel-up. A fuel-up that is being sent
+right now, or that is Done, can't be deleted: once a fuel-up is in LubeLogger,
+changes are made there.
 
 For a failed fuel-up, the user can also retry the receipt search or enter the
 payment data manually. Notifications are only sent when something fails or needs

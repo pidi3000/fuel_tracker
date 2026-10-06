@@ -82,6 +82,11 @@ class FuelUp(Base):
     def editable(self) -> bool:
         return self.status in (Status.PENDING, Status.NEEDS_ATTENTION, Status.FAILED)
 
+    @property
+    def deletable(self) -> bool:
+        """Only a fuel-up that isn't in LubeLogger (and isn't being sent right now) can go."""
+        return self.editable and self.lubelogger_record_id is None
+
 
 class Notification(Base):
     """A message shown in the web UI. `user_id` is empty for messages meant for admins."""

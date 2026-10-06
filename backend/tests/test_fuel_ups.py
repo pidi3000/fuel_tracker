@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from tests.conftest import AppUnderTest
@@ -362,3 +364,110 @@ async def test_status_endpoint(api: AppUnderTest) -> None:
     assert status["state"] == "error" and "GPS Location" in status["message"]
     api.fake.down = True
     assert (await api.client.get("/api/status")).json()["lubelogger"]["state"] == "error"
+
+
+# --- deleting ---
+
+
+async def waiting_for_receipt(api: AppUnderTest, **overrides) -> dict:
+    """A fuel-up that waits for its receipt email (so it isn't being sent)."""
+    created = await create_fuel_up(
+        api,
+        payment_source="email_receipt",
+        fuel_type=None,
+        quantity=None,
+        total_price=None,
+        **overrides,
+    )
+    assert created["waiting_for_receipt"] is True
+    return created
+
+
+async def test_a_fuel_up_that_waits_can_be_deleted(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    created = await waiting_for_receipt(api)
+    assert created["deletable"] is True
+    assert (await api.client.delete(f"/api/fuel-ups/{created['id']}")).status_code == 204
+    assert (await api.client.get(f"/api/fuel-ups/{created['id']}")).status_code == 404
+    assert (await api.client.get("/api/fuel-ups")).json() == []
+    assert (await api.client.delete(f"/api/fuel-ups/{created['id']}")).status_code == 404
+
+
+async def test_a_fuel_up_waiting_for_review_or_failed_can_be_deleted(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    await api.services.runtime.set("review_before_send", True)
+    review = await create_fuel_up(api)
+    assert review["status"] == "needs_attention" and review["deletable"] is True
+    assert (await api.client.delete(f"/api/fuel-ups/{review['id']}")).status_code == 204
+
+    await api.services.runtime.set("review_before_send", False)
+    api.fake.fail_add = [400]
+    failed = await create_fuel_up(api, odometer=20000)
+    await api.services.processor.process_due()
+    assert (await get_fuel_up(api, failed["id"]))["status"] == "failed"
+    assert (await get_fuel_up(api, failed["id"]))["deletable"] is True
+    assert (await api.client.delete(f"/api/fuel-ups/{failed['id']}")).status_code == 204
+    assert api.fake.records == []  # nothing was ever written to LubeLogger
+
+
+async def test_a_fuel_up_in_lubelogger_cannot_be_deleted(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    created = await create_fuel_up(api)
+    await api.services.processor.process_due()
+    done = await get_fuel_up(api, created["id"])
+    assert done["status"] == "done" and done["deletable"] is False
+    response = await api.client.delete(f"/api/fuel-ups/{created['id']}")
+    assert response.status_code == 409 and "in LubeLogger" in response.json()["detail"]
+    assert (await get_fuel_up(api, created["id"]))["status"] == "done"
+
+
+async def test_a_fuel_up_that_is_being_sent_cannot_be_deleted(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    created = await create_fuel_up(api)  # sending, until the processor has run
+    assert created["sending"] is True and created["deletable"] is False
+    response = await api.client.delete(f"/api/fuel-ups/{created['id']}")
+    assert response.status_code == 409 and "being sent" in response.json()["detail"]
+
+
+async def test_deleting_lets_the_receipt_go_and_keeps_the_messages(api: AppUnderTest) -> None:
+    from sqlalchemy import select
+
+    from app.models import Notification, Receipt, ReceiptState
+    from tests.fake_mailbox import FakeMailbox, build_email, receipt_pdf
+    from tests.test_receipts import deliver, receipt_fuel_up
+
+    await sign_in_admin(api)
+    await api.services.runtime.set("review_before_send", True)
+    created = await receipt_fuel_up(api)
+    await deliver(api, FakeMailbox(), build_email(pdf=receipt_pdf()))
+    taken = await get_fuel_up(api, created["id"])
+    assert taken["receipt_id"] is not None and taken["status"] == "needs_attention"
+
+    assert (await api.client.delete(f"/api/fuel-ups/{created['id']}")).status_code == 204
+    async with api.services.sessionmaker() as session:
+        (receipt,) = (await session.execute(select(Receipt))).scalars()
+        notes = list((await session.execute(select(Notification))).scalars())
+    # The receipt is without a fuel-up again, and can be used for another one
+    assert receipt.state == ReceiptState.UNMATCHED
+    assert [r["id"] for r in (await api.client.get("/api/receipts")).json()] == [receipt.id]
+    # The message about the fuel-up stays, without a link to it
+    assert notes and all(n.fuel_up_id is None for n in notes)
+
+
+async def test_deleting_needs_access_to_the_vehicle(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    created = await waiting_for_receipt(api)
+    await create_user(api, "bob", [2])
+    await sign_in_as(api, "bob")
+    assert (await api.client.delete(f"/api/fuel-ups/{created['id']}")).status_code == 404
+    await sign_in_as(api, "alice")
+    assert (await api.client.delete(f"/api/fuel-ups/{created['id']}")).status_code == 204
+
+
+async def test_deleting_publishes_an_event(api: AppUnderTest) -> None:
+    await sign_in_admin(api)
+    created = await waiting_for_receipt(api)
+    with api.services.events.subscribe() as queue:
+        await api.client.delete(f"/api/fuel-ups/{created['id']}")
+        event = await asyncio.wait_for(queue.get(), 1)
+    assert event.type == "fuel_up" and event.data == {"id": created["id"]}

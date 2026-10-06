@@ -7,10 +7,11 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
+from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.types import utcnow
-from app.models import Attention, FuelUp, PaymentSource, Status, User
+from app.models import Attention, FuelUp, Notification, PaymentSource, Status, User
 from app.services.events import EventBus
 from app.services.lubelogger import LubeLoggerClient, LubeLoggerError, LubeLoggerUnavailable
 from app.services.runtime_settings import RuntimeSettings
@@ -345,6 +346,30 @@ def retry(ctx: Context, fuel_up: FuelUp) -> FuelUp:
     check_fuel_up_payment(ctx, fuel_up)
     start_sending(ctx, fuel_up)
     return fuel_up
+
+
+def ensure_deletable(fuel_up: FuelUp) -> None:
+    if fuel_up.status == Status.SENDING:
+        raise FuelUpError(409, "It is being sent to LubeLogger right now. Try again in a moment.")
+    if not fuel_up.deletable:
+        raise FuelUpError(
+            409,
+            "A fuel-up that is in LubeLogger can't be deleted here. Delete the record there.",
+        )
+
+
+async def delete(session: AsyncSession, ctx: Context, fuel_up: FuelUp) -> None:
+    """Remove a fuel-up that hasn't been sent to LubeLogger. Its receipt is let go by the caller."""
+    ensure_deletable(fuel_up)
+    fuel_up_id = fuel_up.id
+    # Messages about it stay, but no longer point to a fuel-up that is gone
+    await session.execute(
+        sql_update(Notification)
+        .where(Notification.fuel_up_id == fuel_up_id)
+        .values(fuel_up_id=None)
+    )
+    await session.delete(fuel_up)
+    ctx.events.publish("fuel_up", id=fuel_up_id)
 
 
 async def count_open(session: AsyncSession) -> int:

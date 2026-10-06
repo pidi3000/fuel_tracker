@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { getJson, patchJson, postJson } from '../api'
+import { deleteJson, getJson, patchJson, postJson } from '../api'
 import FuelUpForm from '../components/FuelUpForm.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { debounced, onEvent } from '../events'
@@ -19,6 +19,7 @@ import { showToast } from '../toast'
 import type { FuelUp, Receipt } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const id = computed(() => Number(route.params.id))
 
 const fuelUp = ref<FuelUp | null>(null)
@@ -64,6 +65,29 @@ async function act(path: string, done: string) {
   } catch (e) {
     error.value = (e as Error).message
   } finally {
+    busy.value = false
+  }
+}
+
+async function remove() {
+  if (!fuelUp.value) return
+  const receipt = fuelUp.value.receipt_id
+    ? ' Its receipt goes back to the receipts without a fuel-up.'
+    : ''
+  if (
+    !confirm(
+      `Delete this fuel-up? It was not sent to LubeLogger, so nothing there changes.${receipt}`,
+    )
+  )
+    return
+  busy.value = true
+  error.value = ''
+  try {
+    await deleteJson(`/fuel-ups/${id.value}`)
+    showToast('Fuel-up deleted.', 'info')
+    await router.push({ name: 'home' })
+  } catch (e) {
+    error.value = (e as Error).message
     busy.value = false
   }
 }
@@ -161,6 +185,15 @@ const paymentLabel = computed(() =>
         </button>
         <button v-if="fuelUp.editable" type="button" @click="editing = !editing">
           {{ editing ? 'Cancel editing' : 'Edit' }}
+        </button>
+        <button
+          v-if="fuelUp.deletable"
+          class="danger"
+          type="button"
+          :disabled="busy"
+          @click="remove"
+        >
+          Delete
         </button>
       </div>
 
