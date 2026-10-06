@@ -9,6 +9,9 @@ case for numbers sent as strings.
 from __future__ import annotations
 
 import logging
+import math
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -143,31 +146,62 @@ def _message(response: httpx.Response) -> str:
 
 
 class LubeLoggerClient:
+    """Talks to LubeLogger.
+
+    A LubeLogger that doesn't answer must not hold everything up. Connecting gets only a few
+    seconds (an answer may take longer), and after a failed attempt LubeLogger is left alone for a
+    short pause: calls in that time fail at once, instead of each waiting for its own timeout.
+    """
+
     def __init__(
         self,
         base_url: str,
         api_key: str = "",
         *,
         timeout: float = 20,
+        connect_timeout: float = 3,
+        pause_after_failure: float = 30,
+        clock: Callable[[], float] = time.monotonic,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         headers = {"culture-invariant": "true", "Accept": "application/json"}
         if api_key:
             headers["x-api-key"] = api_key
         self._http = httpx.AsyncClient(
-            base_url=base_url.rstrip("/"), headers=headers, timeout=timeout, transport=transport
+            base_url=base_url.rstrip("/"),
+            headers=headers,
+            timeout=httpx.Timeout(timeout, connect=connect_timeout),
+            transport=transport,
         )
+        self._pause = pause_after_failure
+        self._clock = clock
+        self._paused_until: float | None = None
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    def _fail_fast_while_paused(self) -> None:
+        if self._paused_until is not None and self._clock() < self._paused_until:
+            seconds = math.ceil(self._paused_until - self._clock())
+            raise LubeLoggerUnavailable(
+                f"LubeLogger can't be reached (it didn't answer a moment ago, so it isn't "
+                f"tried again for {seconds} s)."
+            )
+
+    def _unreachable(self, exc: httpx.HTTPError) -> LubeLoggerUnavailable:
+        if self._pause > 0:
+            self._paused_until = self._clock() + self._pause
+        return LubeLoggerUnavailable(f"LubeLogger can't be reached ({type(exc).__name__}).")
+
+    async def _request(self, method: str, path: str, *, probe: bool = False, **kwargs: Any) -> Any:
+        """`probe` asks even during the pause (to find out whether LubeLogger is back)."""
+        if not probe:
+            self._fail_fast_while_paused()
         try:
             response = await self._http.request(method, path, **kwargs)
         except httpx.HTTPError as exc:
-            raise LubeLoggerUnavailable(
-                f"LubeLogger can't be reached ({type(exc).__name__})."
-            ) from exc
+            raise self._unreachable(exc) from exc
+        self._paused_until = None  # it answered
         if response.status_code >= 500:
             raise LubeLoggerUnavailable(f"LubeLogger had an error: {_message(response)}.")
         if response.status_code in (401, 403):
@@ -189,7 +223,7 @@ class LubeLoggerClient:
 
     async def check(self) -> None:
         """Raises if LubeLogger can't be used (unreachable, wrong URL or API key)."""
-        await self._request("GET", "/api/vehicles")
+        await self._request("GET", "/api/vehicles", probe=True)
 
     async def vehicles(self) -> list[Vehicle]:
         result = []
@@ -227,12 +261,12 @@ class LubeLoggerClient:
         """
         if not location.startswith(("/documents/", "/images/")) or ".." in location:
             raise LubeLoggerRejected("That is not a file stored in LubeLogger.")
+        self._fail_fast_while_paused()
         try:
             response = await self._http.get(location, headers={"Accept": "*/*"})
         except httpx.HTTPError as exc:
-            raise LubeLoggerUnavailable(
-                f"LubeLogger can't be reached ({type(exc).__name__})."
-            ) from exc
+            raise self._unreachable(exc) from exc
+        self._paused_until = None
         if response.status_code >= 500:
             raise LubeLoggerUnavailable(f"LubeLogger had an error: {_message(response)}.")
         if response.status_code in (401, 403):

@@ -17,6 +17,9 @@ class VehicleOut(BaseModel):
 
 class OdometerOut(BaseModel):
     odometer: int | None
+    # True when LubeLogger can't be reached and this is the reading saved earlier (under 1 h old)
+    saved: bool = False
+    saved_minutes_ago: int | None = None
 
 
 class FuelTypesOut(BaseModel):
@@ -49,7 +52,12 @@ async def last_odometer(vehicle_id: int, user: CurrentUser, services: ServicesDe
     if not user.can_access_vehicle(vehicle_id) or services.lubelogger is None:
         raise HTTPException(404, "Unknown vehicle.")
     try:
-        return OdometerOut(odometer=await services.lubelogger.latest_odometer(vehicle_id))
+        reading = await services.vehicles.latest_odometer(vehicle_id)
+        return OdometerOut(
+            odometer=reading.value,
+            saved=reading.saved,
+            saved_minutes_ago=round(reading.age_seconds / 60) if reading.saved else None,
+        )
     except LubeLoggerUnavailable:
         return OdometerOut(odometer=None)
     except LubeLoggerError as exc:
