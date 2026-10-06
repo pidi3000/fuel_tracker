@@ -3,7 +3,7 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
-## Unreleased
+## 0.3.0 - 2026-10-06
 
 ### New
 
