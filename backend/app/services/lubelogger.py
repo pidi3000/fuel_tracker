@@ -70,6 +70,8 @@ class GasRecord:
     notes: str = ""
     extra_fields: list[ExtraField] = field(default_factory=list)
     files: list[UploadedFile] = field(default_factory=list)
+    # The record as LubeLogger sent it. An update replaces the whole record, so it starts from this
+    raw: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
 
 @dataclass
@@ -126,6 +128,7 @@ def _parse_record(raw: dict[str, Any]) -> GasRecord:
             UploadedFile(name=str(_get(item, "name", "")), location=str(_get(item, "location", "")))
             for item in (_get(raw, "files") or [])
         ],
+        raw=raw,
     )
 
 
@@ -264,6 +267,10 @@ class LubeLoggerClient:
         return UploadedFile(
             name=str(_get(data[0], "name", filename)), location=str(_get(data[0], "location"))
         )
+
+    async def update_gas_record(self, body: dict[str, Any]) -> None:
+        """Replace a fuel record. `body` is the record as LubeLogger sent it, with the changes."""
+        await self._request("PUT", "/api/vehicle/gasrecords/update", json=body)
 
     async def add_gas_record(self, vehicle_id: int, record: NewGasRecord) -> int:
         body = {

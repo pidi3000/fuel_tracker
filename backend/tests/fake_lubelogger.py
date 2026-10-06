@@ -31,6 +31,8 @@ class FakeLubeLogger:
             },
         ]
         self.records: list[dict] = []
+        self.updates: list[dict] = []  # what was sent to update a record
+        self.fail_update: list[int] = []  # answer the next updates with these statuses
         self.uploads: dict[str, bytes] = {}
         self.extra_fields = {"GasRecord": ["GPS Location", "Address"]}
         self.api_key: str | None = None
@@ -116,6 +118,8 @@ class FakeLubeLogger:
             return self._upload(request)
         if path == "/api/vehicle/gasrecords/add":
             return self._add(request, vehicle_id)
+        if path == "/api/vehicle/gasrecords/update" and request.method == "PUT":
+            return self._update(request)
         return httpx.Response(404)
 
     def _upload(self, request: httpx.Request) -> httpx.Response:
@@ -130,6 +134,38 @@ class FakeLubeLogger:
         return httpx.Response(
             200, json=[{"name": filename, "location": location, "isPending": False}]
         )
+
+    def _update(self, request: httpx.Request) -> httpx.Response:
+        """Like LubeLogger: the record is replaced by what is sent (it must be sent whole)."""
+        if self.fail_update:
+            status = self.fail_update.pop(0)
+            return httpx.Response(status, json={"success": False, "message": "Rejected"})
+        data = json.loads(request.content)
+        required = (
+            "id",
+            "date",
+            "odometer",
+            "fuelConsumed",
+            "cost",
+            "isFillToFull",
+            "missedFuelUp",
+        )
+        if any(data.get(key) in (None, "") for key in required):
+            return httpx.Response(
+                400,
+                json={"success": False, "message": "Input object invalid, ... cannot be empty."},
+            )
+        record = next((r for r in self.records if str(r["id"]) == str(data["id"])), None)
+        if record is None:
+            return httpx.Response(400, json={"success": False, "message": "Invalid Record Id"})
+        for key in ("date", "odometer", "fuelConsumed", "cost", "isFillToFull", "missedFuelUp"):
+            record[key] = data[key]
+        record["notes"] = data.get("notes") or ""
+        record["tags"] = data.get("tags") or ""
+        record["extraFields"] = data.get("extraFields") or []
+        record["files"] = [{**f, "isPending": False} for f in data.get("files") or []]
+        self.updates.append(data)
+        return httpx.Response(200, json={"success": True, "message": "Gas Record Updated"})
 
     def _add(self, request: httpx.Request, vehicle_id: int) -> httpx.Response:
         if self.fail_add:

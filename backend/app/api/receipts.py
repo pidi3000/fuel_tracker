@@ -1,20 +1,24 @@
 """Receipts that arrived by email, especially those without a fuel-up."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, ServicesDep, SessionDep
 from app.api.fuel_ups import FuelUpOut, Latitude, Longitude, Odometer, http_error
+from app.core.types import utcnow
 from app.models import FuelUp, Receipt, ReceiptState
 from app.services import fuel_ups as fuel_up_service
 from app.services import receipts as receipt_service
+from app.services import record_matching
 from app.services.fuel_ups import FuelUpError
+from app.services.lubelogger import LubeLoggerError, LubeLoggerUnavailable
+from app.services.processor import TRANSACTION_MARKER
 
 router = APIRouter(prefix="/receipts", tags=["receipts"])
 
@@ -39,6 +43,9 @@ class ReceiptOut(BaseModel):
     created_at: datetime
     fuel_up_id: int | None = None
     has_pdf: bool = False
+    # Set when the receipt was attached to a fuel record that already existed in LubeLogger
+    linked_vehicle_id: int | None = None
+    linked_record_id: int | None = None
 
 
 class CompleteIn(BaseModel):
@@ -155,3 +162,151 @@ async def ignore_receipt(
     receipt.state = ReceiptState.IGNORED
     await session.commit()
     services.events.publish("receipt", id=receipt.id)
+
+
+class CandidateOut(BaseModel):
+    vehicle_id: int
+    vehicle_name: str
+    record_id: int
+    date: date
+    odometer: int
+    fuel_consumed: str
+    cost: str
+    notes: str
+    has_files: bool
+    days_after: int  # how many days after the receipt the record is dated
+    amount_matches: bool
+    price_matches: bool
+
+
+class LinkIn(BaseModel):
+    vehicle_id: int
+    record_id: int
+
+
+def _lubelogger_error(exc: LubeLoggerError) -> HTTPException:
+    if isinstance(exc, LubeLoggerUnavailable):
+        return HTTPException(503, str(exc))
+    return HTTPException(502, str(exc))
+
+
+async def _open_receipt(session: SessionDep, user: CurrentUser, receipt_id: int) -> Receipt:
+    receipt = await _visible(session, user, receipt_id)
+    if receipt.state != ReceiptState.UNMATCHED:
+        raise HTTPException(409, "This receipt is already used or ignored.")
+    if receipt.paid_at is None:
+        raise HTTPException(422, "The time of this receipt couldn't be read, so it can't be used.")
+    return receipt
+
+
+@router.get("/{receipt_id}/record-candidates")
+async def record_candidates(
+    receipt_id: int,
+    user: CurrentUser,
+    session: SessionDep,
+    services: ServicesDep,
+    days: Annotated[int, Query(ge=0, le=record_matching.MAX_DAYS)] = record_matching.DEFAULT_DAYS,
+    include_other_amounts: bool = False,
+) -> list[CandidateOut]:
+    """Fuel records in LubeLogger this receipt may belong to, the closest in date first.
+
+    Only records dated on the day of the receipt or later are offered, and by default only those
+    with the same fuel amount and total price.
+    """
+    receipt = await _open_receipt(session, user, receipt_id)
+    if services.lubelogger is None:
+        raise HTTPException(503, "LubeLogger isn't set up. Set LUBELOGGER_URL.")
+    try:
+        vehicles = {v.id: v for v in await services.vehicles.all() if user.can_access_vehicle(v.id)}
+        records = [
+            r for r in await services.lubelogger.all_gas_records() if r.vehicle_id in vehicles
+        ]
+    except LubeLoggerError as exc:
+        raise _lubelogger_error(exc) from exc
+    runtime = services.runtime
+    found = record_matching.candidates(
+        receipt,
+        records,
+        tz=runtime.tz,
+        volume_unit=runtime.volume_unit,
+        currency=runtime.currency,
+        days=days,
+        include_other_amounts=include_other_amounts,
+    )
+    return [
+        CandidateOut(
+            vehicle_id=c.record.vehicle_id,
+            vehicle_name=vehicles[c.record.vehicle_id].name,
+            record_id=c.record.id,
+            date=c.record.date,
+            odometer=c.record.odometer,
+            fuel_consumed=format(c.record.fuel_consumed, "f"),
+            cost=format(c.record.cost, "f"),
+            notes=c.record.notes,
+            has_files=bool(c.record.files),
+            days_after=c.days_after,
+            amount_matches=c.amount_matches,
+            price_matches=c.price_matches,
+        )
+        for c in found
+    ]
+
+
+@router.post("/{receipt_id}/link-record")
+async def link_record(
+    receipt_id: int,
+    body: LinkIn,
+    user: CurrentUser,
+    session: SessionDep,
+    services: ServicesDep,
+) -> ReceiptOut:
+    """Attach the receipt to a fuel record that already exists in LubeLogger.
+
+    The record gets the receipt PDF, the transaction ID in its notes and, if it has none, the
+    station address. Everything else in it is kept.
+    """
+    receipt = await _open_receipt(session, user, receipt_id)
+    client = services.lubelogger
+    if client is None:
+        raise HTTPException(503, "LubeLogger isn't set up. Set LUBELOGGER_URL.")
+    if not user.can_access_vehicle(body.vehicle_id):
+        raise HTTPException(404, "Unknown vehicle.")
+    try:
+        everything = await client.all_gas_records()
+        record = next(
+            (r for r in everything if r.vehicle_id == body.vehicle_id and r.id == body.record_id),
+            None,
+        )
+        if record is None:
+            raise HTTPException(404, "That fuel record doesn't exist.")
+        if record_matching.has_receipt(record):
+            raise HTTPException(409, "That fuel record already has a Pace Drive receipt.")
+        if receipt.transaction_id:
+            marker = f"{TRANSACTION_MARKER}{receipt.transaction_id}"
+            used = next((r for r in everything if marker in r.notes), None)
+            if used is not None:
+                raise HTTPException(
+                    409,
+                    f"This receipt is already in LubeLogger, as fuel record #{used.id}.",
+                )
+        uploaded = None
+        path = receipt_service.pdf_path(services.receipts, receipt)
+        if path is not None and path.is_file():
+            uploaded = await client.upload_document(receipt.pdf_name, path.read_bytes())
+        update = record_matching.updated_record(
+            record,
+            receipt,
+            uploaded,
+            address_field=services.settings.lubelogger_field_address,
+        )
+        await client.update_gas_record(update)
+    except LubeLoggerError as exc:
+        raise _lubelogger_error(exc) from exc
+
+    receipt.state = ReceiptState.MATCHED
+    receipt.linked_vehicle_id = record.vehicle_id
+    receipt.linked_record_id = record.id
+    receipt.linked_at = utcnow()
+    await session.commit()
+    services.events.publish("receipt", id=receipt.id)
+    return await _out(session, receipt)

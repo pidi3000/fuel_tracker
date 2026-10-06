@@ -702,6 +702,10 @@ table.kv th {
   color: var(--warn);
 }
 
+.ok-text {
+  color: var(--ok);
+}
+
 /* --- settings --- */
 
 .setting {
