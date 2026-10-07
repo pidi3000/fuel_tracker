@@ -262,7 +262,7 @@ async def link_record(
 ) -> ReceiptOut:
     """Attach the receipt to a fuel record that already exists in LubeLogger.
 
-    The record gets the receipt PDF, the transaction ID in its notes and, if it has none, the
+    The record gets the receipt PDF, Fuel Tracker's notes and, if it has none, the
     station address. Everything else in it is kept.
     """
     receipt = await _open_receipt(session, user, receipt_id)
@@ -298,6 +298,7 @@ async def link_record(
             receipt,
             uploaded,
             address_field=services.settings.lubelogger_field_address,
+            linked_by=user.username,
         )
         await client.update_gas_record(update)
     except LubeLoggerError as exc:

@@ -16,9 +16,9 @@ from datetime import date
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from app.models import Receipt
+from app.models import PaymentSource, Receipt
 from app.services.lubelogger import GasRecord, UploadedFile
-from app.services.processor import TRANSACTION_MARKER
+from app.services.processor import TRANSACTION_MARKER, notes_text
 from app.services.receipts import currencies_match, units_match
 
 # Amounts are compared to the cent; LubeLogger rounds what a person types
@@ -91,12 +91,14 @@ def updated_record(
     uploaded: UploadedFile | None,
     *,
     address_field: str,
+    linked_by: str,
 ) -> dict:
     """The record as it is sent back to LubeLogger, with the receipt added.
 
     What the record already holds is kept: an update replaces the whole record. The receipt adds
-    its transaction ID to the notes (so it is never used twice), the PDF as an attachment and, if
-    the record has none, the station address.
+    the same notes as a sent fuel-up (below any notes the record has, after two empty lines; the
+    transaction ID in them makes sure the receipt is never used twice), the PDF as an attachment
+    and, if the record has none, the station address.
     """
     body = dict(record.raw)
 
@@ -104,10 +106,10 @@ def updated_record(
         existing = next((k for k in body if k.lower() == key.lower()), key)
         body[existing] = value
 
-    notes = record.notes
-    if receipt.transaction_id:
-        line = f"{TRANSACTION_MARKER}{receipt.transaction_id}"
-        notes = f"{notes}\n{line}" if notes.strip() else line
+    added = notes_text(
+        receipt.fuel_type, PaymentSource.EMAIL_RECEIPT, linked_by, receipt.transaction_id
+    )
+    notes = f"{record.notes.rstrip()}\n\n\n{added}" if record.notes.strip() else added
     put("notes", notes)
 
     if uploaded is not None:

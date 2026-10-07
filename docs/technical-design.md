@@ -265,7 +265,7 @@ Records whose notes already carry a `PaceDrive Transaction ID:` line are left ou
 Choosing a record uploads the PDF and replaces the record with
 `PUT /api/vehicle/gasrecords/update`. LubeLogger replaces the whole record, so the
 body is the record as LubeLogger sent it, with only these changed: the notes get
-the transaction ID line, the files get the PDF, and the address extra field is
+the same text as a sent fuel-up (below existing notes, after two empty lines), the files get the PDF, and the address extra field is
 filled if empty. The receipt becomes `matched` (with `linked_vehicle_id`,
 `linked_record_id`, `linked_at`), which also lets its email leave the inbox.
 The receipt is deleted after the grace period, like an ignored one.

@@ -48,15 +48,30 @@ class SendRefused(LubeLoggerError):
 TRANSACTION_MARKER = "PaceDrive Transaction ID: "
 
 
-def build_notes(fuel_up: FuelUp, transaction_id: str | None = None) -> str:
-    lines = [
-        f"Fuel type: {fuel_up.fuel_type}",
-        f"Payment: {PAYMENT_LABELS[PaymentSource(fuel_up.payment_source)]}",
-        f"Created by: {fuel_up.created_by_name}",
-    ]
+def notes_text(
+    fuel_type: str | None,
+    payment_source: PaymentSource,
+    created_by: str,
+    transaction_id: str | None = None,
+) -> str:
+    """The notes Fuel Tracker adds to a LubeLogger record."""
+    lines = []
+    if fuel_type:
+        lines.append(f"Fuel type: {fuel_type}")
+    lines.append(f"Payment: {PAYMENT_LABELS[payment_source]}")
+    lines.append(f"Created by: {created_by}")
     if transaction_id:
         lines.append(f"{TRANSACTION_MARKER}{transaction_id}")
     return "\n".join(lines)
+
+
+def build_notes(fuel_up: FuelUp, transaction_id: str | None = None) -> str:
+    return notes_text(
+        fuel_up.fuel_type,
+        PaymentSource(fuel_up.payment_source),
+        fuel_up.created_by_name,
+        transaction_id,
+    )
 
 
 class Processor:

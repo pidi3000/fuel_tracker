@@ -124,8 +124,10 @@ already have a Pace Drive receipt are not offered.
 Choosing a record adds to it, and keeps everything else as it is:
 
 - the receipt PDF as an attachment,
-- the line *PaceDrive Transaction ID: …* in the notes, so the receipt is never
-  used twice, and
+- the same notes as a fuel-up sent by Fuel Tracker (fuel type, payment, the user
+  who linked it and the line *PaceDrive Transaction ID: …*, so the receipt is
+  never used twice). If the record already has notes, these are added below them
+  after two empty lines, and
 - the station and address in the *Address* extra field, if that is empty.
 
 The receipt then counts as used: its email is marked as read and moved, like
