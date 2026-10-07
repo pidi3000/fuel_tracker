@@ -15,6 +15,10 @@ details are linked from each release on GitHub.
 
 ### Fixed
 
+- Matching a receipt to an existing LubeLogger record now adds the same notes as a normal
+  fuel-up (fuel type, payment, who linked it and the transaction ID), not only the transaction
+  ID. Existing notes are kept; the new ones go below them after two empty lines.
+
 - Adding a fuel-up while LubeLogger can't be reached no longer takes very long. Connecting is
   given up after 3 seconds (before: 20 seconds for each of several calls), and for 30 seconds
   after that LubeLogger isn't tried again, so the form and saving answer at once.

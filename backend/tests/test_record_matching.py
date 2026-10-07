@@ -127,12 +127,20 @@ def test_updating_keeps_what_the_record_holds() -> None:
     receipt = fixture_receipt()
     receipt.transaction_id = TRANSACTION_ID
     receipt.address = "TESTOIL, Musterstrasse 12, 12345 Musterstadt"
+    receipt.fuel_type = "Super"
     from app.services.lubelogger import UploadedFile
 
     body = updated_record(
-        existing, receipt, UploadedFile("receipt.pdf", "/documents/r.pdf"), address_field="Address"
+        existing,
+        receipt,
+        UploadedFile("receipt.pdf", "/documents/r.pdf"),
+        address_field="Address",
+        linked_by="pidi",
     )
-    assert body["notes"] == f"Shell, paid cash\n{MARKER}"
+    assert body["notes"] == (
+        "Shell, paid cash\n\n\nFuel type: Super\n"
+        f"Payment: Pace Drive email receipt\nCreated by: pidi\n{MARKER}"
+    )
     assert body["tags"] == "trip work" and body["id"] == 1 and body["startingSoc"] == 0
     assert body["files"][-1] == {"name": "receipt.pdf", "location": "/documents/r.pdf"}
     names = {f["name"]: f for f in body["extraFields"]}
@@ -210,7 +218,10 @@ async def test_linking_attaches_the_receipt_to_the_record(api: AppUnderTest) -> 
     )
 
     updated = next(r for r in api.fake.records if r["id"] == 2)
-    assert updated["notes"] == f"paid cash\n{MARKER}"
+    assert updated["notes"].startswith("paid cash\n\n\nFuel type: ")
+    assert updated["notes"].endswith(
+        f"Payment: Pace Drive email receipt\nCreated by: alice\n{MARKER}"
+    )
     assert [f["name"] for f in updated["files"]] == ["receipt.pdf"]
     assert updated["files"][0]["location"] in api.fake.uploads
     assert updated["extraFields"][0]["value"].startswith("TESTOIL")
