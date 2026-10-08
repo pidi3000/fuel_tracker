@@ -49,6 +49,20 @@ const kinds = { info: '', warning: 'warn', error: 'error' } as const
           >
             Open the fuel-up
           </RouterLink>
+          <RouterLink
+            v-else-if="item.receipt_id"
+            class="small"
+            :to="{ name: 'receipt', params: { id: item.receipt_id } }"
+          >
+            Open the receipt
+          </RouterLink>
+          <RouterLink
+            v-else-if="item.kind === 'update_available'"
+            class="small"
+            :to="{ name: 'settings' }"
+          >
+            Open the settings
+          </RouterLink>
         </li>
       </ul>
     </section>

@@ -109,7 +109,7 @@ def problem_from_log(log: str) -> str:
 
 @dataclass
 class EmailStatus:
-    state: str  # "ok", "error" or "not_configured"
+    state: str  # "ok", "untested", "error" or "not_configured"
     message: str = ""
 
 
@@ -121,15 +121,25 @@ class _Outgoing:
     body: str
     addresses: list[str]
     path: str  # the page of the web UI it is about
+    note: str | None  # why this one came to the admins, if it is about a user
 
 
-async def recipients_for(session: AsyncSession, notification: Notification) -> list[str]:
-    """The addresses a notification goes to; empty if nobody who could get it wants it."""
+@dataclass
+class Recipients:
+    addresses: list[str]  # empty if nobody who could get it wants it
+    # The user a notification is about, when the admins get it because that user can't be emailed
+    about: str | None = None
+
+
+async def recipients_for(session: AsyncSession, notification: Notification) -> Recipients:
+    """Who a notification goes to by email."""
+    about = None
     if notification.user_id is not None:
         user = await session.get(User, notification.user_id)
         if user is not None and user.is_active and user.email:
-            return [user.email] if user.wants_email(notification.kind) else []
-    return await admin_addresses(session, notification.kind)
+            return Recipients([user.email] if user.wants_email(notification.kind) else [])
+        about = user.username if user is not None else None
+    return Recipients(await admin_addresses(session, notification.kind), about)
 
 
 async def admin_addresses(session: AsyncSession, kind: str | None = None) -> list[str]:
@@ -174,6 +184,9 @@ class EmailNotifier:
         self._link_problem = self._check_public_url()
         # What happened with the last message, for the settings page
         self._last_error: str | None = None
+        # Whether an email has gone out since the app started (the mail server's login is
+        # only known to work after that)
+        self._has_sent = False
         # Not kept in the database: after a restart, everything pending is tried again
         self._retry_at: dict[int, datetime] = {}
         self._sent_to: dict[int, set[str]] = {}
@@ -226,10 +239,21 @@ class EmailNotifier:
                 return EmailStatus(
                     "error",
                     "No admin has an email address, so notifications that aren't for one "
-                    "user can't be sent. Add one under Users.",
+                    "user can't be sent. Add one on the Account page.",
                 )
         if self._last_error:
             return EmailStatus("error", f"The last email wasn't sent: {self._last_error}")
+        if not self._has_sent:
+            return EmailStatus(
+                "untested",
+                " ".join(
+                    [
+                        "No email has been sent since the app started, so the mail server's "
+                        "login is not checked yet. Send yourself a test email on the Account page.",
+                        self._link_problem or "",
+                    ]
+                ).strip(),
+            )
         return EmailStatus("ok", self._link_problem or "")
 
     async def send_test(self, address: str) -> str | None:
@@ -243,6 +267,7 @@ class EmailNotifier:
             level="info",
         )
         self._last_error = error
+        self._has_sent = self._has_sent or error is None
         return error
 
     async def run(self) -> None:
@@ -275,8 +300,8 @@ class EmailNotifier:
                     continue
                 if self._retry_at.get(notification.id, now) > now:
                     continue
-                addresses = await recipients_for(session, notification)
-                if not addresses:
+                recipients = await recipients_for(session, notification)
+                if not recipients.addresses:
                     logger.info(
                         "Notification %r was not emailed: nobody who gets it has an email "
                         "address, or wants it by email",
@@ -291,8 +316,12 @@ class EmailNotifier:
                         notification.level,
                         f"{SUBJECT_PREFIX}{notification.title}",
                         notification.message or notification.title,
-                        addresses,
+                        recipients.addresses,
                         link_path(notification),
+                        None
+                        if recipients.about is None
+                        else f"This is about {recipients.about}. You get it because "
+                        f"{recipients.about} can't be emailed (no email address, or not active).",
                     )
                 )
             await session.commit()
@@ -317,6 +346,8 @@ class EmailNotifier:
             if address in sent_to:
                 continue
             body = message.body
+            if message.note:
+                body = f"{body}\n\n{message.note}"
             if link := self._link(message.path):
                 body = f"{body}\n\nOpen it in Fuel Tracker:\n{link}"
             error = await self._sender.send(
@@ -327,6 +358,7 @@ class EmailNotifier:
             )
             if error is None:
                 sent_to.add(address)
+                self._has_sent = True
             elif first_error is None:
                 first_error = error
         self._last_error = first_error

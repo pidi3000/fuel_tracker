@@ -19,7 +19,6 @@ from tests.helpers import (
     add_notification,
     create_user,
     email_state,
-    set_email,
     sign_in_admin,
     sign_in_as,
 )
@@ -360,9 +359,40 @@ async def test_status_says_whether_there_is_someone_to_send_to(mail_api: AppUnde
     await sign_in_admin(mail_api)
     # Set up, but nobody has an address to send the admin messages to
     status = (await mail_api.client.get("/api/status")).json()["email"]
-    assert status["state"] == "error" and "email address" in status["message"]
-    await set_email(mail_api, 1, "alice@example.org")
+    assert status["state"] == "error" and "Account page" in status["message"]
+
+
+async def test_status_is_not_ok_before_an_email_went_out(mail_api: AppUnderTest) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    # An address and a valid URL don't show that the mail server's login works
+    status = (await mail_api.client.get("/api/status")).json()["email"]
+    assert status["state"] == "untested" and "test email" in status["message"]
+
+    await mail_api.client.post("/api/notifications/email/test")
+
     assert (await mail_api.client.get("/api/status")).json()["email"] == {
         "state": "ok",
         "message": "",
     }
+
+
+async def test_status_is_ok_after_a_notification_went_out(mail_api: AppUnderTest) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    await add_notification(mail_api)
+
+    await mail_api.services.email.deliver_pending()
+
+    assert (await mail_api.client.get("/api/status")).json()["email"]["state"] == "ok"
+
+
+async def test_status_goes_back_to_ok_after_a_failure(mail_api: AppUnderTest, sender) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    await mail_api.client.post("/api/notifications/email/test")
+    sender.error = "Connection error"
+    await mail_api.client.post("/api/notifications/email/test")
+    assert (await mail_api.client.get("/api/status")).json()["email"]["state"] == "error"
+
+    sender.error = None
+    await mail_api.client.post("/api/notifications/email/test")
+
+    assert (await mail_api.client.get("/api/status")).json()["email"]["state"] == "ok"

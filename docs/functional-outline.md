@@ -220,8 +220,10 @@ other users' addresses). If nobody who should get a notification has an address
 or wants it by email, it is only shown in the web UI.
 
 The email has the subject *Fuel Tracker:* followed by the title of the
-notification, and the same text, followed by a link to the page it is about (the
-fuel-up, the receipt, the settings for an update, otherwise the notifications).
+notification, and the same text. If the admins get it because the user it is
+about has no email address (or isn't active), a line says who it is about. A link
+to the page it is about follows (the fuel-up, the receipt, the settings for an
+update, otherwise the notifications).
 The link is built from the address the app is reached at (`PUBLIC_URL`); without
 it, the emails have no link. If the mail server can't be reached, sending is tried
 again after 1, 5 and 15 minutes; then the email is given up (the notification
@@ -230,7 +232,8 @@ switching email on, or updating, never sends old ones.
 
 The Account page also has a button that sends a test email to the saved address.
 The admins see on the settings page whether email notifications are set up and
-working. The mail server is set up with `APPRISE_EMAIL_URL` (see
+working (*not tested yet* until the first email has gone out since the app
+started). The mail server is set up with `APPRISE_EMAIL_URL` (see
 [Settings](#settings-overview)).
 
 ### Navigation and appearance

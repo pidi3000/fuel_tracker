@@ -131,12 +131,14 @@ function format(value: Setting['value']): string {
 
 const stateLabel: Record<ConnectionStatus['state'], string> = {
   ok: 'Working',
+  untested: 'Not tested yet',
   error: 'Problem',
   not_configured: 'Not set up',
   connecting: 'Connecting…',
 }
 const stateKind: Record<ConnectionStatus['state'], string> = {
   ok: 'ok',
+  untested: 'warn',
   error: 'error',
   not_configured: '',
   connecting: 'warn',

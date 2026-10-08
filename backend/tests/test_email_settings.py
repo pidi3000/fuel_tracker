@@ -204,6 +204,51 @@ async def test_switching_off_what_an_admin_no_longer_sees_is_kept(mail_api: AppU
         assert alice.email_disabled_kinds == ["needs_attention", "review_ready", "update_available"]
 
 
+# --- emails to the admins about a user ---
+
+
+async def test_an_email_to_the_admins_says_who_it_is_about(mail_api: AppUnderTest, sender) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    bob = await create_user(mail_api, "bob", [1])  # no address
+    await add_notification(mail_api, user_id=bob, message="Golf, 12345: No receipt.", fuel_up_id=9)
+
+    await mail_api.services.email.deliver_pending()
+
+    assert sender.addresses == ["alice@example.org"]
+    assert sender.sent[0].body == (
+        "Golf, 12345: No receipt.\n\n"
+        "This is about bob. You get it because bob can't be emailed "
+        "(no email address, or not active).\n\n"
+        f"Open it in Fuel Tracker:\n{PUBLIC_URL}/fuel-ups/9"
+    )
+
+
+async def test_an_inactive_user_is_named_too(mail_api: AppUnderTest, sender) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    bob = await create_user(mail_api, "bob", [1], email="bob@example.org")
+    await mail_api.client.patch(f"/api/users/{bob}", json={"is_active": False})
+    await add_notification(mail_api, user_id=bob)
+
+    await mail_api.services.email.deliver_pending()
+
+    assert sender.addresses == ["alice@example.org"]
+    assert "This is about bob." in sender.sent[0].body
+
+
+async def test_no_note_when_it_goes_to_the_user_or_is_for_the_admins(
+    mail_api: AppUnderTest, sender
+) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    bob = await create_user(mail_api, "bob", [1], email="bob@example.org")
+    await add_notification(mail_api, user_id=bob)  # to bob
+    await add_notification(mail_api, kind=NotificationKind.UPDATE_AVAILABLE)  # for the admins
+
+    await mail_api.services.email.deliver_pending()
+
+    assert sorted(sender.addresses) == ["alice@example.org", "bob@example.org"]
+    assert all("This is about" not in email.body for email in sender.sent)
+
+
 # --- the link ---
 
 

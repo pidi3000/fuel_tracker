@@ -19,10 +19,10 @@ details are linked from each release on GitHub.
   for admins also a receipt without a fuel-up, a receipt email with a problem, and a new
   version). Everything is on until you switch it off. A button sends a test email to your
   address. The emails about a user's fuel-ups go to that user. If they have no address, they go
-  to the admins, as do the notifications that aren't about one user. A user who switched a kind
-  off gets no email for it, and nobody gets it in their place. The email field is gone from the
-  *Users* page: admins can no longer set other users' addresses (addresses that were set before
-  are kept).
+  to the admins (the email says whom it is about), as do the notifications that aren't about
+  one user. A user who switched a kind off gets no email for it, and nobody gets it in their
+  place. The email field is gone from the *Users* page: admins can no longer set other users'
+  addresses (addresses that were set before are kept).
 
 ## 0.4.0 - 2026-10-07
 

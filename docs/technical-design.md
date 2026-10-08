@@ -395,7 +395,9 @@ older than this feature (or created while no email URL is set) are `skipped`, no
 sent later: switching email on never sends a flood of old messages.
 
 **The email** has the subject `Fuel Tracker: <title>` and the message as plain
-text, followed by a link: `PUBLIC_URL` plus the page the notification is about
+text, followed by a note and a link. The note is only there when the admins get a
+notification about a user because that user can't be emailed (no address, or not
+active): *This is about bob. You get it because bob can't be emailed.* The link is `PUBLIC_URL` plus the page the notification is about
 (`/fuel-ups/{id}`, `/receipts/{id}`, `/admin/settings` for an update, else
 `/notifications`). The web UI sends a signed-out visitor to the login page and
 back to the link afterwards. Without a valid `PUBLIC_URL` (an `http://` or
@@ -403,7 +405,9 @@ back to the link afterwards. Without a valid `PUBLIC_URL` (an `http://` or
 
 The settings page shows whether email is set up, whether the last email went out
 (with the mail server's error if not), and the Account page has a button that
-sends a test email to the user's own saved address. Apprise only reports the
+sends a test email to the user's own saved address. An address and a valid URL
+don't show that the mail server's login works, so the status says *not tested
+yet* until an email (a test or a notification) has gone out since the app started. Apprise only reports the
 reason for a failure in its debug log, so the log is captured while a message is
 sent.
 
@@ -556,6 +560,12 @@ docker-compose.yml
 - **LubeLogger client and IMAP**: the same code is also tested against a real
   LubeLogger and a real IMAP server when `LUBELOGGER_TEST_URL` and
   `IMAP_TEST_HOST` are set (see `docs/development.md`).
+- **Email notifications**: the delivery logic (who gets what, retries, links) is
+  tested with a fake sender. `tests/test_apprise_smtp.py` also sends through the
+  real Apprise to a small SMTP server that runs inside the test (`aiosmtpd`, a
+  dev dependency only), so a newer Apprise that changes how the email URL is read,
+  what the email looks like or the reason it reports for a failure fails the
+  tests. No setup is needed; it runs with the other tests.
 - **API**: tests for permissions (users only see their vehicles), validation
   (odometer checks) and the live updates.
 - **CI**: GitHub Actions runs lint, format checks, tests, the frontend build,

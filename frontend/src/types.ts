@@ -129,10 +129,12 @@ export interface HistoryRecord {
 
 export interface AppNotification {
   id: number
+  kind: string
   level: 'info' | 'warning' | 'error'
   title: string
   message: string
   fuel_up_id: number | null
+  receipt_id: number | null
   is_read: boolean
   created_at: string
 }
@@ -172,7 +174,7 @@ export interface SettingsResponse {
 }
 
 export interface ConnectionStatus {
-  state: 'ok' | 'error' | 'not_configured' | 'connecting'
+  state: 'ok' | 'untested' | 'error' | 'not_configured' | 'connecting'
   message: string
 }
 
