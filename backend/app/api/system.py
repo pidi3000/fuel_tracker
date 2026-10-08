@@ -81,19 +81,6 @@ async def connection_status(_: AdminUser, services: ServicesDep) -> StatusOut:
     )
 
 
-@router.post("/status/email-test")
-async def send_test_email(admin: AdminUser, services: ServicesDep) -> ConnectionStatus:
-    """Send a test email to the signed-in admin."""
-    if not admin.email:
-        return ConnectionStatus(
-            state="error",
-            message="Your account has no email address. Add one under Users, then try again.",
-        )
-    if error := await services.email.send_test(admin.email):
-        return ConnectionStatus(state="error", message=error)
-    return ConnectionStatus(state="ok", message=f"A test email was sent to {admin.email}.")
-
-
 async def _lubelogger_status(services: ServicesDep) -> ConnectionStatus:
     client = services.lubelogger
     if client is None:

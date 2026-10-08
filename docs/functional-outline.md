@@ -194,26 +194,44 @@ attention, never on success.
 ### Notifications
 
 A notification appears in the web UI (the bell in the header), and, when email is
-set up, is also sent by email. The email goes to:
+set up, is also sent by email. Each notification is of one *kind*, and each user
+chooses on the **Account** page which kinds they want by email:
+
+| Kind | When | Who can get it |
+| --- | --- | --- |
+| A fuel-up failed | No receipt arrived in time, or LubeLogger refused the fuel-up or couldn't be reached | everyone |
+| A fuel-up needs attention | A receipt value couldn't be read or doesn't match the units, or its date came from the PDF | everyone |
+| A fuel-up is ready for review | The receipt arrived and the fuel-up waits for approval (*Review before sending*) | everyone |
+| A receipt has no fuel-up | A receipt matches no fuel-up | admins |
+| A receipt email has a problem | A receipt email couldn't be read, or turned up again | admins |
+| A new version is available | A newer image of the app exists | admins |
+
+All kinds are on until a user switches them off. The email goes to:
 
 - **the user it is about**, for example the one who created a fuel-up that
-  failed or needs attention, if that user has an email address (the admin sets it
-  under *Users*);
+  failed, if that user has saved an email address and wants this kind. A user who
+  switched the kind off gets nothing, and the admins don't get it in their place;
 - **the admins**, when the user has no email address, and for everything that
-  isn't about one user: a receipt that has no fuel-up, a receipt email that
-  couldn't be read or turned up again, and a newer version of the app. Every
-  admin with an email address gets it, once.
+  isn't about one user (the *admins* kinds above). Every admin with an email
+  address who wants the kind gets it, once.
 
-If nobody who should get a notification has an email address, it is only shown in
-the web UI. The email has the subject *Fuel Tracker:* followed by the title of the
-notification, and the same text. If the mail server can't be reached, sending is
-tried again after 1, 5 and 15 minutes; then the email is given up (the
-notification stays in the web UI). Emails are only sent for notifications from
-now on: switching email on, or updating, never sends old ones.
+Everyone sets their own email address on the Account page (admins can't set
+other users' addresses). If nobody who should get a notification has an address
+or wants it by email, it is only shown in the web UI.
 
+The email has the subject *Fuel Tracker:* followed by the title of the
+notification, and the same text, followed by a link to the page it is about (the
+fuel-up, the receipt, the settings for an update, otherwise the notifications).
+The link is built from the address the app is reached at (`PUBLIC_URL`); without
+it, the emails have no link. If the mail server can't be reached, sending is tried
+again after 1, 5 and 15 minutes; then the email is given up (the notification
+stays in the web UI). Emails are only sent for notifications from now on:
+switching email on, or updating, never sends old ones.
+
+The Account page also has a button that sends a test email to the saved address.
 The admins see on the settings page whether email notifications are set up and
-working, and can send themselves a test email there. The mail server is set up
-with `APPRISE_EMAIL_URL` (see [Settings](#settings-overview)).
+working. The mail server is set up with `APPRISE_EMAIL_URL` (see
+[Settings](#settings-overview)).
 
 ### Navigation and appearance
 
@@ -234,6 +252,9 @@ The server supports multiple user accounts with two roles:
 - **Admin**: manages settings and users, and decides which vehicles each user
   can access
 - **User**: creates and views fuel-ups for the vehicles assigned to them
+
+Every user manages their own account: password, API tokens, email address and
+which notifications they get by email.
 
 The server is only reachable through a VPN and sits behind a reverse proxy, but
 it still handles login itself. The Shortcut uses the same API with its own
@@ -274,7 +295,7 @@ controlled in Fuel Tracker.
 - Fuel types (defaults: Diesel, Super, Super Plus, Super E10)
 - Units for fuel amount and currency (default: liters and EUR, matching
   LubeLogger)
-- Email notifications: the mail server (an Apprise email URL; an environment variable only, as it holds the password). The email address of each user is set under *Users*
+- Email notifications: the mail server (an Apprise email URL; an environment variable only, as it holds the password) and the address the app is reached at, for the link in the emails (`PUBLIC_URL`). Each user sets their own email address and choices on the Account page
 - Users, roles and vehicle access
 
 ### Update check

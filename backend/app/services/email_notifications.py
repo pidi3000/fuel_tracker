@@ -1,8 +1,8 @@
 """Sends the notifications by email, with Apprise.
 
-A notification goes to the user it is for, if that user has an email address. Otherwise, and for
-notifications that aren't for one user (a receipt without a fuel-up, an update), it goes to the
-admins that have one.
+A notification goes to the user it is for, if that user has an email address and wants this kind
+of notification by email. If that user has no address, and for notifications that aren't for one
+user (a receipt without a fuel-up, an update), it goes to the admins that have one and want it.
 
 Sending is a background job and not part of creating the notification: a slow or broken mail
 server never holds up a fuel-up, and a notification whose transaction was rolled back is never
@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.types import utcnow
 from app.models import EmailState, Notification, Role, User
+from app.services.notifications import link_path
 
 logger = logging.getLogger(__name__)
 
@@ -119,29 +120,33 @@ class _Outgoing:
     title: str
     body: str
     addresses: list[str]
+    path: str  # the page of the web UI it is about
 
 
 async def recipients_for(session: AsyncSession, notification: Notification) -> list[str]:
-    """The addresses a notification goes to; empty if nobody who could get it has one."""
+    """The addresses a notification goes to; empty if nobody who could get it wants it."""
     if notification.user_id is not None:
         user = await session.get(User, notification.user_id)
         if user is not None and user.is_active and user.email:
-            return [user.email]
-    return await admin_addresses(session)
+            return [user.email] if user.wants_email(notification.kind) else []
+    return await admin_addresses(session, notification.kind)
 
 
-async def admin_addresses(session: AsyncSession) -> list[str]:
+async def admin_addresses(session: AsyncSession, kind: str | None = None) -> list[str]:
+    """The addresses of the active admins; only those who want `kind`, if it is given."""
     result = await session.execute(
-        select(User.email)
+        select(User)
         .where(User.role == Role.ADMIN, User.is_active.is_(True), User.email.is_not(None))
         .order_by(User.id)
     )
     seen: set[str] = set()
     addresses = []
-    for email in result.scalars():
-        if email and email.lower() not in seen:
-            seen.add(email.lower())
-            addresses.append(email)
+    for admin in result.scalars():
+        if not admin.email or (kind is not None and not admin.wants_email(kind)):
+            continue
+        if admin.email.lower() not in seen:
+            seen.add(admin.email.lower())
+            addresses.append(admin.email)
     return addresses
 
 
@@ -151,6 +156,7 @@ class EmailNotifier:
         sessionmaker: async_sessionmaker[AsyncSession],
         base_url: str,
         *,
+        public_url: str = "",
         sender: EmailSender | None = None,
         retry_delays: tuple[float, ...] = RETRY_DELAYS,
         interval: float = 10,
@@ -163,6 +169,9 @@ class EmailNotifier:
         self._interval = interval
         self._clock = clock
         self._problem = self._check_url()
+        # Where the web UI can be reached from outside, for the link in each email
+        self._public_url = public_url.strip().rstrip("/")
+        self._link_problem = self._check_public_url()
         # What happened with the last message, for the settings page
         self._last_error: str | None = None
         # Not kept in the database: after a restart, everything pending is tried again
@@ -170,6 +179,22 @@ class EmailNotifier:
         self._sent_to: dict[int, set[str]] = {}
         if self._problem:
             logger.warning("%s Emails are not sent.", self._problem)
+        if self._link_problem and self._public_url:
+            logger.warning("%s", self._link_problem)
+
+    def _check_public_url(self) -> str | None:
+        if not self._public_url:
+            return "PUBLIC_URL is not set, so the emails have no link to the app."
+        parts = urlsplit(self._public_url)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            return (
+                "PUBLIC_URL isn't a web address like https://fuel.example.org, "
+                "so the emails have no link to the app."
+            )
+        return None
+
+    def _link(self, path: str) -> str | None:
+        return None if self._link_problem else f"{self._public_url}{path}"
 
     def _check_url(self) -> str | None:
         if not self._base_url:
@@ -205,14 +230,12 @@ class EmailNotifier:
                 )
         if self._last_error:
             return EmailStatus("error", f"The last email wasn't sent: {self._last_error}")
-        return EmailStatus("ok")
+        return EmailStatus("ok", self._link_problem or "")
 
     async def send_test(self, address: str) -> str | None:
         """Send a test email. Returns None, or what went wrong."""
-        if not self.configured:
-            return "APPRISE_EMAIL_URL is not set."
-        if self._problem:
-            return self._problem
+        if not self.ready:
+            return "Email notifications are not set up on this server."
         error = await self._sender.send(
             recipient_url(self._base_url, address),
             title=f"{SUBJECT_PREFIX}Test email",
@@ -254,8 +277,9 @@ class EmailNotifier:
                     continue
                 addresses = await recipients_for(session, notification)
                 if not addresses:
-                    logger.warning(
-                        "Notification %r was not emailed: no admin has an email address",
+                    logger.info(
+                        "Notification %r was not emailed: nobody who gets it has an email "
+                        "address, or wants it by email",
                         notification.title,
                     )
                     notification.email_state = EmailState.SKIPPED
@@ -268,6 +292,7 @@ class EmailNotifier:
                         f"{SUBJECT_PREFIX}{notification.title}",
                         notification.message or notification.title,
                         addresses,
+                        link_path(notification),
                     )
                 )
             await session.commit()
@@ -291,10 +316,13 @@ class EmailNotifier:
         for address in message.addresses:
             if address in sent_to:
                 continue
+            body = message.body
+            if link := self._link(message.path):
+                body = f"{body}\n\nOpen it in Fuel Tracker:\n{link}"
             error = await self._sender.send(
                 recipient_url(self._base_url, address),
                 title=message.title,
-                body=message.body,
+                body=body,
                 level=message.level,
             )
             if error is None:

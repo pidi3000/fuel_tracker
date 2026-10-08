@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.types import utcnow
-from app.models import Notification
+from app.models import Notification, NotificationKind
 from app.services import notifications
 from app.services.events import EventBus
 
@@ -199,5 +199,12 @@ async def announce_update(
             f"A newer release image is available. You are running {status.current}. "
             "To update, pull the new image and restart the container."
         )
-    await notifications.notify(session, events, level="info", title=title, message=message)
+    await notifications.notify(
+        session,
+        events,
+        kind=NotificationKind.UPDATE_AVAILABLE,
+        level="info",
+        title=title,
+        message=message,
+    )
     return True

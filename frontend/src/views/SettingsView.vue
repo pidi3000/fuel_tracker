@@ -6,6 +6,7 @@ import { formatDateTime } from '../format'
 import { showToast } from '../toast'
 import type {
   ConnectionStatus,
+  EmailTestResult,
   EnvironmentInfo,
   Setting,
   SettingsResponse,
@@ -65,7 +66,7 @@ async function check() {
 async function sendTestEmail() {
   sendingTest.value = true
   try {
-    const result = await postJson<ConnectionStatus>('/status/email-test')
+    const result = await postJson<EmailTestResult>('/notifications/email/test')
     showToast(result.message, result.state === 'ok' ? 'ok' : 'error', 8000)
   } catch (e) {
     showToast((e as Error).message, 'error', 8000)
@@ -342,6 +343,13 @@ onMounted(() => {
             <td class="small">
               from {{ environment.receipt_sender }}, subject matching
               <code>{{ environment.receipt_subject_pattern }}</code>
+            </td>
+          </tr>
+          <tr>
+            <th>Public address</th>
+            <td>
+              <template v-if="environment.public_url">{{ environment.public_url }}</template>
+              <template v-else>not set (the emails have no link)</template>
             </td>
           </tr>
           <tr>

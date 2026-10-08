@@ -72,12 +72,12 @@ fuel-ups are deleted after the grace period; LubeLogger is the long-term store.
 
 | Table | Contents |
 | --- | --- |
-| `users` | Username, optional email address (where notifications are sent), password hash, role (admin/user), active flag |
+| `users` | Username, optional email address (where notifications are sent; set by the user), the kinds of notification they don't want by email, password hash, role (admin/user), active flag |
 | `user_vehicles` | Which LubeLogger vehicle IDs a user may log for |
 | `api_tokens` | Per-user tokens for the Shortcut (stored hashed), name, last used |
 | `fuel_ups` | Vehicle, odometer, date/time, full/missed flags, GPS, payment source, manual payment data, status, warnings, error message, LubeLogger record ID once sent, created by, timestamps |
 | `receipts` | Data extracted from a receipt (station, address, date/time, fuel type, quantity, unit, total, currency, transaction ID), the PDF file, the mail's message ID, linked fuel-up (if any), state (matched/unmatched/ignored) |
-| `notifications` | Messages shown in the web UI (e.g. "Fuel-up failed"), read flag, and whether the email for it was sent (the queue for [email notifications](#email-notifications)) |
+| `notifications` | Messages shown in the web UI (e.g. "Fuel-up failed"): kind, the fuel-up or receipt it is about, read flag, and whether the email for it was sent (the queue for [email notifications](#email-notifications)) |
 | `settings_overrides` | Settings changed in the web UI (see [Settings](#settings)) |
 
 Receipt PDFs are stored as files under `/data/receipts/` only until they have
@@ -298,15 +298,16 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET`/`POST` | `/api/update`, `/api/update/check` | What the last look for a newer image found / look now (admin) |
 | `GET` | `/api/status` | Whether LubeLogger, the mailbox and email notifications work, and whether the extra fields exist (admin) |
-| `POST` | `/api/status/email-test` | Send a test email to the signed-in admin (admin) |
 | `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |
+| `GET`/`PUT` | `/api/notifications/email` | The user's own email address and the kinds of notification they want by email (only the kinds that can reach them); whether the server can send emails |
+| `POST` | `/api/notifications/email/test` | Send a test email to the user's saved address |
 | `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
 | `GET` | `/api/receipts/{id}`, `/api/receipts/{id}/pdf` | One receipt, and its PDF |
 | `POST` | `/api/receipts/{id}/complete`, `/api/receipts/{id}/ignore` | Turn a receipt into a fuel-up / ignore it |
 | `GET` | `/api/receipts/{id}/record-candidates` | Fuel records in LubeLogger the receipt may belong to (`days`, `include_other_amounts`) |
 | `POST` | `/api/receipts/{id}/link-record` | Attach the receipt to one of them (`vehicle_id`, `record_id`) |
 | `GET`, `PUT`/`DELETE` | `/api/settings`, `/api/settings/{key}` | Effective settings and read-only connection details / set or reset a web UI override (admin) |
-| `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin) |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/users`, `/api/users/{id}` | User management: role, active flag, password reset, vehicle access (admin). Email addresses are not set here |
 
 The Shortcut makes a single `POST /api/fuel-ups` call with an API token in the
 `Authorization: Bearer …` header, and shows success or the error message from
@@ -367,11 +368,21 @@ works as well. Special characters in the password are written as `%XX`. The URL
 contains the password, so it is an environment variable only and never shown in
 the web UI. Without it, nothing is sent.
 
-**Who gets it.** The user the notification is for, if they have an email address.
-Otherwise, and for notifications that aren't for one user (a receipt without a
-fuel-up, an unreadable receipt email, an update), all active admins that have an
-address (the same address once). If nobody has an address, there is nobody to
-send to: the notification stays in the web UI only, and a line is logged.
+**Kinds.** Each notification has a `kind` (`NotificationKind`: `fuel_up_failed`,
+`needs_attention`, `review_ready`, `receipt_without_fuel_up`,
+`receipt_email_problem`, `update_available`), set where it is created.
+`app/services/notifications.py` lists them with the text shown on the Account
+page and which are for admins only. Each user has a list of the kinds they
+switched off (`users.email_disabled_kinds`), so a kind added later is on for
+everyone.
+
+**Who gets it.** The user the notification is for, if they are active, have an
+email address and want its kind. If that user has no address, and for
+notifications that aren't for one user (`user_id` empty), all active admins that
+have an address and want the kind (the same address once). A user who switched a
+kind off gets nothing, and it does not fall back to the admins. If nobody is left,
+the notification stays in the web UI only. Users set their own address and
+choices (`PUT /api/notifications/email`); the admin API can't.
 
 **How it is sent.** Creating a notification only writes its row in the
 `notifications` table, with `email_state` = `pending`. A background task checks
@@ -383,11 +394,18 @@ already got it is skipped), then given up (`failed`). Notifications that are
 older than this feature (or created while no email URL is set) are `skipped`, not
 sent later: switching email on never sends a flood of old messages.
 
-The email has the subject `Fuel Tracker: <title>` and the message as plain text.
-The settings page shows whether it is set up, whether the last email went out
-(with the mail server's error if not), and has a button that sends a test email to
-the signed-in admin. Apprise only reports the reason for a failure in its debug
-log, so the log is captured while a message is sent.
+**The email** has the subject `Fuel Tracker: <title>` and the message as plain
+text, followed by a link: `PUBLIC_URL` plus the page the notification is about
+(`/fuel-ups/{id}`, `/receipts/{id}`, `/admin/settings` for an update, else
+`/notifications`). The web UI sends a signed-out visitor to the login page and
+back to the link afterwards. Without a valid `PUBLIC_URL` (an `http://` or
+`https://` address) the emails have no link, and the settings page says so.
+
+The settings page shows whether email is set up, whether the last email went out
+(with the mail server's error if not), and the Account page has a button that
+sends a test email to the user's own saved address. Apprise only reports the
+reason for a failure in its debug log, so the log is captured while a message is
+sent.
 
 ## Settings
 
@@ -413,6 +431,7 @@ until it is reset.
 | Volume unit / currency | `VOLUME_UNIT`, `CURRENCY` | `L`, `EUR` | Yes |
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
 | Email notifications (an Apprise `mailto://` or `mailtos://` URL, see [Email notifications](#email-notifications)) | `APPRISE_EMAIL_URL` | – | No |
+| Address of the web UI, for the link in emails (e.g. `https://fuel.example.org`) | `PUBLIC_URL` | – (no link) | No |
 | Look for newer images / image name | `UPDATE_CHECK`, `UPDATE_CHECK_IMAGE` | `true`, `ghcr.io/pidi3000/fuel_tracker` | No |
 | Session lifetime | `SESSION_DAYS` | `30` | No |
 | Trusted proxy | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | No |

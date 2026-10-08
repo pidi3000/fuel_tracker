@@ -32,6 +32,7 @@ class EnvironmentOut(BaseModel):
     """Settings that are only changed through environment variables (never secrets)."""
 
     version: str
+    public_url: str
     lubelogger_url: str
     lubelogger_api_key_set: bool
     lubelogger_field_gps: str
@@ -62,6 +63,7 @@ async def get_settings(_: AdminUser, services: ServicesDep) -> SettingsOut:
         settings=[SettingOut(**d) for d in services.runtime.describe()],
         environment=EnvironmentOut(
             version=get_version(),
+            public_url=env.public_url,
             lubelogger_url=env.lubelogger_url,
             lubelogger_api_key_set=bool(env.lubelogger_api_key),
             lubelogger_field_gps=env.lubelogger_field_gps,

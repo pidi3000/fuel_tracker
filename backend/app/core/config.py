@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # (special characters in the password are written as %XX). The address to send to is added
     # for each message. Empty: no emails are sent.
     apprise_email_url: str = ""
+    # The address the web UI is reached at from outside, e.g. https://fuel.example.org. The
+    # emails link to it. Empty: no link in the emails.
+    public_url: str = ""
 
     # --- LubeLogger ---
     lubelogger_url: str = ""

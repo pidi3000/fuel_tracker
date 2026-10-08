@@ -1,66 +1,29 @@
 import sqlite3
-from collections.abc import AsyncIterator
 from contextlib import closing
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import httpx
-import pytest
 from alembic import command
 from alembic.config import Config
-from httpx import ASGITransport
 from sqlalchemy import create_engine, select
 
-from app.core.config import Settings
 from app.core.database import MIGRATIONS_DIR
 from app.core.types import utcnow
-from app.main import create_app
-from app.models import EmailState, Notification
+from app.models import EmailState, Notification, NotificationKind
 from app.services import notifications
 from app.services import receipts as receipt_service
 from app.services.email_notifications import EmailNotifier, problem_from_log, recipient_url
-from tests.conftest import AppUnderTest, lubelogger_client
-from tests.fake_email import FakeEmailSender
-from tests.fake_lubelogger import FakeLubeLogger
-from tests.helpers import create_user, sign_in_admin, sign_in_as
+from tests.conftest import AppUnderTest
+from tests.fake_email import EMAIL_URL, PUBLIC_URL, FakeEmailSender
+from tests.helpers import (
+    add_notification,
+    create_user,
+    email_state,
+    set_email,
+    sign_in_admin,
+    sign_in_as,
+)
 from tests.test_receipts import insert_receipt, receipt_fuel_up
-
-EMAIL_URL = "mailtos://fuel:secret@smtp.example.org:587?from=fuel@example.org&name=Fuel%20Tracker"
-
-
-@pytest.fixture
-def sender() -> FakeEmailSender:
-    return FakeEmailSender()
-
-
-@pytest.fixture
-async def mail_api(
-    settings: Settings, fake_lubelogger: FakeLubeLogger, sender: FakeEmailSender
-) -> AsyncIterator[AppUnderTest]:
-    """The running app with email set up, sending into `sender`."""
-    settings = settings.model_copy(update={"apprise_email_url": EMAIL_URL})
-    app = create_app(settings, lubelogger=lubelogger_client(fake_lubelogger), email_sender=sender)
-    async with app.router.lifespan_context(app):
-        transport = ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-            yield AppUnderTest(app, client, app.state.services, fake_lubelogger)
-
-
-async def add_notification(api: AppUnderTest, **fields) -> int:
-    values = {"level": "warning", "title": "Something happened", "message": "Take a look."}
-    values.update(fields)
-    async with api.services.sessionmaker() as session:
-        notification = await notifications.notify(session, None, **values)
-        await session.commit()
-        return notification.id
-
-
-async def email_state(api: AppUnderTest, notification_id: int) -> str:
-    async with api.services.sessionmaker() as session:
-        notification = await session.get(Notification, notification_id)
-        assert notification is not None
-        return notification.email_state
-
 
 # --- the address ---
 
@@ -102,7 +65,8 @@ async def test_a_notification_goes_to_its_user(mail_api: AppUnderTest, sender) -
     assert sender.addresses == ["bob@example.org"]
     email = sender.sent[0]
     assert email.title == "Fuel Tracker: Fuel-up #3 failed"
-    assert email.body == "Take a look." and email.level == "error"
+    assert email.body == f"Take a look.\n\nOpen it in Fuel Tracker:\n{PUBLIC_URL}/notifications"
+    assert email.level == "error"
     assert await email_state(mail_api, note) == EmailState.SENT
     # Once sent, it is not sent again
     assert await mail_api.services.email.deliver_pending() == 0
@@ -172,7 +136,7 @@ async def test_a_message_without_text_uses_its_title(mail_api: AppUnderTest, sen
 
     await mail_api.services.email.deliver_pending()
 
-    assert sender.sent[0].body == "Heads up"
+    assert sender.sent[0].body.startswith("Heads up\n\nOpen it in Fuel Tracker:")
 
 
 # --- when it is not set up ---
@@ -220,12 +184,20 @@ async def test_notifications_from_before_the_upgrade_are_not_sent(tmp_path: Path
             "INSERT INTO notifications (level, title, message, is_read, created_at) "
             "VALUES ('info', 'Old news', '', 0, '2026-10-01 10:00:00')"
         )
+        old.execute(
+            "INSERT INTO users (username, password_hash, role, is_active, created_at) "
+            "VALUES ('alice', 'x', 'admin', 1, '2026-10-01 10:00:00')"
+        )
     with engine.begin() as connection:
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
     with closing(sqlite3.connect(database)) as upgraded:
-        row = upgraded.execute("SELECT email_state, email_attempts FROM notifications").fetchone()
-    assert row == ("skipped", 0)
+        row = upgraded.execute(
+            "SELECT email_state, email_attempts, kind, receipt_id FROM notifications"
+        ).fetchone()
+        wants = upgraded.execute("SELECT email_disabled_kinds FROM users").fetchone()
+    assert row == ("skipped", 0, "other", None)
+    assert wants == ("[]",)  # a user wants everything until they say otherwise
 
 
 # --- when sending fails ---
@@ -359,7 +331,13 @@ async def test_a_receipt_without_a_fuel_up_is_emailed_to_the_admins(
 async def test_a_rolled_back_notification_is_not_sent(mail_api: AppUnderTest, sender) -> None:
     await sign_in_admin(mail_api, email="alice@example.org")
     async with mail_api.services.sessionmaker() as session:
-        await notifications.notify(session, None, level="error", title="Never happened")
+        await notifications.notify(
+            session,
+            None,
+            kind=NotificationKind.FUEL_UP_FAILED,
+            level="error",
+            title="Never happened",
+        )
         await session.rollback()
 
     await mail_api.services.email.deliver_pending()
@@ -383,34 +361,8 @@ async def test_status_says_whether_there_is_someone_to_send_to(mail_api: AppUnde
     # Set up, but nobody has an address to send the admin messages to
     status = (await mail_api.client.get("/api/status")).json()["email"]
     assert status["state"] == "error" and "email address" in status["message"]
-    await mail_api.client.patch("/api/users/1", json={"email": "alice@example.org"})
+    await set_email(mail_api, 1, "alice@example.org")
     assert (await mail_api.client.get("/api/status")).json()["email"] == {
         "state": "ok",
         "message": "",
     }
-
-
-async def test_a_test_email_goes_to_the_signed_in_admin(mail_api: AppUnderTest, sender) -> None:
-    await sign_in_admin(mail_api)
-    body = (await mail_api.client.post("/api/status/email-test")).json()
-    assert body["state"] == "error" and "no email address" in body["message"]
-    assert sender.sent == []
-
-    await mail_api.client.patch("/api/users/1", json={"email": "alice@example.org"})
-    body = (await mail_api.client.post("/api/status/email-test")).json()
-    assert body["state"] == "ok" and "alice@example.org" in body["message"]
-    assert sender.addresses == ["alice@example.org"]
-
-    sender.error = "Authentication failed"
-    body = (await mail_api.client.post("/api/status/email-test")).json()
-    assert body == {"state": "error", "message": "Authentication failed"}
-    status = (await mail_api.client.get("/api/status")).json()["email"]
-    assert status["state"] == "error" and "Authentication failed" in status["message"]
-
-
-async def test_the_test_email_is_for_admins_only(mail_api: AppUnderTest) -> None:
-    assert (await mail_api.client.post("/api/status/email-test")).status_code == 401
-    await sign_in_admin(mail_api)
-    await create_user(mail_api, "bob", [1], email="bob@example.org")
-    await sign_in_as(mail_api, "bob")
-    assert (await mail_api.client.post("/api/status/email-test")).status_code == 403

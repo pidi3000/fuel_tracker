@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,6 +24,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(10), default=Role.USER)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # The kinds of notification this user does not want by email (all others are sent)
+    email_disabled_kinds: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     vehicles: Mapped[list["UserVehicle"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin"
@@ -36,6 +38,9 @@ class User(Base):
     @property
     def vehicle_ids(self) -> list[int]:
         return sorted(v.vehicle_id for v in self.vehicles)
+
+    def wants_email(self, kind: str) -> bool:
+        return kind not in self.email_disabled_kinds
 
     def can_access_vehicle(self, vehicle_id: int) -> bool:
         return self.is_admin or vehicle_id in self.vehicle_ids

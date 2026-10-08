@@ -183,8 +183,10 @@ async def test_update_endpoints_are_for_admins(api: AppUnderTest) -> None:
 
     after = (await api.client.post("/api/update/check")).json()
     assert after["latest"] == "0.2.0" and after["available"] is True and after["checked_at"]
-    titles = [n["title"] for n in (await api.client.get("/api/notifications")).json()]
-    assert "Update available: 0.2.0" in titles
+    notes = (await api.client.get("/api/notifications")).json()
+    assert [n["kind"] for n in notes if n["title"] == "Update available: 0.2.0"] == [
+        "update_available"
+    ]
 
     await create_user(api, "bob", [1])
     await sign_in_as(api, "bob")

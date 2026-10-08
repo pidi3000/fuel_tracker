@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 from urllib.parse import parse_qs, urlsplit
 
+EMAIL_URL = "mailtos://fuel:secret@smtp.example.org:587?from=fuel@example.org&name=Fuel%20Tracker"
+PUBLIC_URL = "https://fuel.example.org"
+
 
 @dataclass
 class SentEmail:

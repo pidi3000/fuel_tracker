@@ -169,6 +169,7 @@ async def test_review_before_send_after_the_receipt(api: AppUnderTest) -> None:
     assert state["status"] == "needs_attention" and state["attention"] == "review"
     note = (await api.client.get("/api/notifications")).json()[0]
     assert "arrived" in note["title"] and note["level"] == "info"
+    assert note["kind"] == "review_ready" and note["fuel_up_id"] == created["id"]
 
     await api.client.post(f"/api/fuel-ups/{created['id']}/approve")
     await api.services.processor.process_due()
@@ -186,7 +187,8 @@ async def test_unit_mismatch_needs_attention(api: AppUnderTest) -> None:
     state = await get_fuel_up(api, created["id"])
     assert state["status"] == "needs_attention" and state["attention"] == "unit_mismatch"
     assert "gal" in state["attention_message"] and "L" in state["attention_message"]
-    assert (await api.client.get("/api/notifications")).json()[0]["level"] == "warning"
+    note = (await api.client.get("/api/notifications")).json()[0]
+    assert note["level"] == "warning" and note["kind"] == "needs_attention"
     assert await api.services.processor.process_due() == 0
 
     # Convert by hand, then approve
@@ -235,6 +237,7 @@ async def test_date_taken_from_the_pdf_is_reported(api: AppUnderTest) -> None:
     assert state["status"] == "pending" and state["sending"] is True  # still processed
     note = (await api.client.get("/api/notifications")).json()[0]
     assert note["level"] == "warning" and "PDF" in note["title"]
+    assert note["kind"] == "needs_attention"
 
 
 async def test_waiting_too_long_fails_and_can_be_retried(api: AppUnderTest) -> None:
@@ -252,6 +255,7 @@ async def test_waiting_too_long_fails_and_can_be_retried(api: AppUnderTest) -> N
     assert failed["status"] == "failed" and "60 minutes" in failed["error_message"]
     note = (await api.client.get("/api/notifications")).json()[0]
     assert note["level"] == "error" and note["fuel_up_id"] == created["id"]
+    assert note["kind"] == "fuel_up_failed"
 
     # The receipt shows up late; retrying finds it
     await deliver(api, FakeMailbox(), build_email(pdf=receipt_pdf()))
@@ -390,6 +394,8 @@ async def test_a_new_email_with_a_stored_transaction_is_flagged_at_once(api: App
     assert await deliver(api, mailbox, build_email(pdf=receipt_pdf(), message_id="<b@x>")) == 1
     assert mailbox.flagged == [2] and list(mailbox.messages) == [1]
     assert "A receipt email was found again" in await notification_titles(api)
+    kinds = {n["kind"] for n in (await api.client.get("/api/notifications")).json()}
+    assert kinds == {"receipt_email_problem"}
 
 
 async def test_receipts_can_come_from_several_senders(api: AppUnderTest) -> None:
@@ -441,6 +447,7 @@ async def test_an_unreadable_pdf_is_kept_and_reported(api: AppUnderTest) -> None
     assert receipt.parse_error and receipt.paid_at is None
     note = (await api.client.get("/api/notifications")).json()[0]
     assert note["level"] == "error" and "couldn't be read" in note["title"]
+    assert note["kind"] == "receipt_email_problem" and note["receipt_id"] == receipt.id
     # It can't become a fuel-up, but can be ignored
     assert (
         await api.client.post(
@@ -551,6 +558,10 @@ async def test_lonely_receipts_are_announced_after_the_window(api: AppUnderTest)
         await session.commit()
     (note,) = (await api.client.get("/api/notifications")).json()
     assert note["title"] == "Receipt without a fuel-up" and "TESTOIL" in note["message"]
+    assert (
+        note["kind"] == "receipt_without_fuel_up"
+        and note["receipt_id"] == (await all_receipts(api))[0].id
+    )
 
 
 async def test_receipts_are_visible_to_users_with_access_only_once_matched(

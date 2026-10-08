@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.types import utcnow
-from app.models import FuelUp, PaymentSource, Receipt, Status
+from app.models import FuelUp, NotificationKind, PaymentSource, Receipt, Status
 from app.services import notifications
 from app.services.events import EventBus
 from app.services.lubelogger import (
@@ -185,6 +185,7 @@ class Processor:
         await notifications.notify(
             session,
             self._events,
+            kind=NotificationKind.FUEL_UP_FAILED,
             level="error",
             title=f"Fuel-up #{fuel_up.id} failed",
             message=f"{fuel_up.vehicle_name}, {fuel_up.odometer}: {message}",

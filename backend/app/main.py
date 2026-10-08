@@ -135,7 +135,12 @@ def create_app(
                 fuel=Context(runtime=runtime, events=events, lubelogger=client, vehicles=vehicles),
                 data_dir=settings.data_dir,
             ),
-            email=EmailNotifier(sessionmaker, settings.apprise_email_url, sender=email_sender),
+            email=EmailNotifier(
+                sessionmaker,
+                settings.apprise_email_url,
+                public_url=settings.public_url,
+                sender=email_sender,
+            ),
         )
         if settings.update_check:
             services.updates = UpdateChecker(settings.update_check_image, get_version())

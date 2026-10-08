@@ -40,6 +40,18 @@ class EmailState(enum.StrEnum):
     FAILED = "failed"  # the mail server refused it or couldn't be reached, even after retries
 
 
+class NotificationKind(enum.StrEnum):
+    """What a notification is about. Users choose by kind which ones they get by email."""
+
+    FUEL_UP_FAILED = "fuel_up_failed"  # no receipt in time, or LubeLogger refused / unreachable
+    NEEDS_ATTENTION = "needs_attention"  # a receipt value is missing, or doesn't match, or a date
+    REVIEW_READY = "review_ready"  # the receipt arrived, the fuel-up waits for approval
+    RECEIPT_WITHOUT_FUEL_UP = "receipt_without_fuel_up"  # admins
+    RECEIPT_EMAIL_PROBLEM = "receipt_email_problem"  # admins: unreadable, or arrived again
+    UPDATE_AVAILABLE = "update_available"  # admins
+    OTHER = "other"  # notifications from before kinds existed
+
+
 class FuelUp(Base):
     __tablename__ = "fuel_ups"
 
@@ -109,7 +121,9 @@ class Notification(Base):
     level: Mapped[str] = mapped_column(String(10), default="info")  # info, warning or error
     title: Mapped[str] = mapped_column(String(200))
     message: Mapped[str] = mapped_column(Text, default="")
+    kind: Mapped[str] = mapped_column(String(30), default=NotificationKind.OTHER)
     fuel_up_id: Mapped[int | None] = mapped_column(Integer)
+    receipt_id: Mapped[int | None] = mapped_column(Integer)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     email_state: Mapped[str] = mapped_column(String(10), default=EmailState.PENDING)
