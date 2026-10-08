@@ -31,6 +31,15 @@ class Attention(enum.StrEnum):
     DATE_FALLBACK = "date_fallback"  # the receipt date came from the PDF metadata
 
 
+class EmailState(enum.StrEnum):
+    """Whether a notification has been sent by email."""
+
+    PENDING = "pending"  # not yet sent
+    SENT = "sent"
+    SKIPPED = "skipped"  # email isn't set up, or nobody to send it to
+    FAILED = "failed"  # the mail server refused it or couldn't be reached, even after retries
+
+
 class FuelUp(Base):
     __tablename__ = "fuel_ups"
 
@@ -89,7 +98,7 @@ class FuelUp(Base):
 
 
 class Notification(Base):
-    """A message shown in the web UI. `user_id` is empty for messages meant for admins."""
+    """A message shown in the web UI, and sent by email. `user_id` is empty for the admins."""
 
     __tablename__ = "notifications"
 
@@ -103,6 +112,8 @@ class Notification(Base):
     fuel_up_id: Mapped[int | None] = mapped_column(Integer)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    email_state: Mapped[str] = mapped_column(String(10), default=EmailState.PENDING)
+    email_attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class SettingOverride(Base):

@@ -55,7 +55,9 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u <github-username> --password-stdi
    file to `.env`.
 2. Edit `.env`: set `LUBELOGGER_URL` and `LUBELOGGER_API_KEY`, and the `IMAP_*`
    values for the mailbox that receives the receipts (leave `IMAP_HOST` empty
-   for manual fuel-ups only).
+   for manual fuel-ups only). To get notifications by email, also set
+   `APPRISE_EMAIL_URL` (see `.env.example`) and give your users an email address
+   under *Users* in the app.
 3. Start it with `docker compose up -d`.
 4. Open `http://<server>:8000` and create the first admin account. All other
    settings are managed in the web UI.

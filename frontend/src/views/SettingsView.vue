@@ -17,6 +17,7 @@ const settings = ref<Setting[]>([])
 const environment = ref<EnvironmentInfo | null>(null)
 const status = ref<StatusResponse | null>(null)
 const checking = ref(false)
+const sendingTest = ref(false)
 const update = ref<UpdateInfo | null>(null)
 const checkingUpdate = ref(false)
 const error = ref('')
@@ -58,6 +59,19 @@ async function check() {
     error.value = (e as Error).message
   } finally {
     checking.value = false
+  }
+}
+
+async function sendTestEmail() {
+  sendingTest.value = true
+  try {
+    const result = await postJson<ConnectionStatus>('/status/email-test')
+    showToast(result.message, result.state === 'ok' ? 'ok' : 'error', 8000)
+  } catch (e) {
+    showToast((e as Error).message, 'error', 8000)
+  } finally {
+    sendingTest.value = false
+    await check() // the status shows what happened to the last email
   }
 }
 
@@ -147,7 +161,11 @@ onMounted(() => {
       <table v-if="status" class="kv">
         <tbody>
           <tr
-            v-for="(name, key) in { lubelogger: 'LubeLogger', mailbox: 'Receipt mailbox' }"
+            v-for="(name, key) in {
+              lubelogger: 'LubeLogger',
+              mailbox: 'Receipt mailbox',
+              email: 'Email notifications',
+            }"
             :key="key"
           >
             <th>{{ name }}</th>
@@ -156,6 +174,16 @@ onMounted(() => {
                 stateLabel[status[key].state]
               }}</span>
               <div v-if="status[key].message" class="small muted">{{ status[key].message }}</div>
+              <div v-if="key === 'email' && status.email.state !== 'not_configured'">
+                <button
+                  type="button"
+                  class="link small"
+                  :disabled="sendingTest"
+                  @click="sendTestEmail"
+                >
+                  Send a test email to me
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

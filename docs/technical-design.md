@@ -37,7 +37,7 @@ keeps hosting simple.
 | Mail | IMAPClient | Supports IMAP IDLE (push), folder moves and searches |
 | PDF | pdfplumber | Text extraction plus access to the PDF metadata (creation date) |
 | Passwords | argon2 (via pwdlib) | Current recommended password hashing |
-| Notifications | Apprise (later) | One library for email, Pushover, ntfy, Telegram etc. |
+| Notifications | Apprise | One library for email now, and Pushover, ntfy, Telegram etc. later |
 | Web UI | Vue 3 + TypeScript, built with Vite | Component-based UI that updates in place; mature PWA support |
 | PWA | vite-plugin-pwa | Manifest and service worker, so the UI can be installed on the phone later |
 | Packaging | uv (Python), npm (UI), multi-stage Dockerfile | Reproducible builds; final image contains no Node.js |
@@ -72,12 +72,12 @@ fuel-ups are deleted after the grace period; LubeLogger is the long-term store.
 
 | Table | Contents |
 | --- | --- |
-| `users` | Username, optional email address (for notifications later), password hash, role (admin/user), active flag |
+| `users` | Username, optional email address (where notifications are sent), password hash, role (admin/user), active flag |
 | `user_vehicles` | Which LubeLogger vehicle IDs a user may log for |
 | `api_tokens` | Per-user tokens for the Shortcut (stored hashed), name, last used |
 | `fuel_ups` | Vehicle, odometer, date/time, full/missed flags, GPS, payment source, manual payment data, status, warnings, error message, LubeLogger record ID once sent, created by, timestamps |
 | `receipts` | Data extracted from a receipt (station, address, date/time, fuel type, quantity, unit, total, currency, transaction ID), the PDF file, the mail's message ID, linked fuel-up (if any), state (matched/unmatched/ignored) |
-| `notifications` | Messages shown in the web UI (e.g. "Fuel-up failed"), read flag |
+| `notifications` | Messages shown in the web UI (e.g. "Fuel-up failed"), read flag, and whether the email for it was sent (the queue for [email notifications](#email-notifications)) |
 | `settings_overrides` | Settings changed in the web UI (see [Settings](#settings)) |
 
 Receipt PDFs are stored as files under `/data/receipts/` only until they have
@@ -297,7 +297,8 @@ at `/api/docs` (OpenAPI). Main endpoints:
 | `GET` | `/api/events` | Live updates (SSE): `fuel_up`, `receipt` and `notification` events carry only an id; the client reloads the data through the API |
 | `GET` | `/api/version` | App version (shown in the web UI) |
 | `GET`/`POST` | `/api/update`, `/api/update/check` | What the last look for a newer image found / look now (admin) |
-| `GET` | `/api/status` | Whether LubeLogger (and later the mailbox) work, and whether the extra fields exist (admin) |
+| `GET` | `/api/status` | Whether LubeLogger, the mailbox and email notifications work, and whether the extra fields exist (admin) |
+| `POST` | `/api/status/email-test` | Send a test email to the signed-in admin (admin) |
 | `GET`/`POST` | `/api/notifications`, `/api/notifications/read` | Messages for the user; mark as read |
 | `GET` | `/api/receipts` | Receipts by state (default: those without a fuel-up) |
 | `GET` | `/api/receipts/{id}`, `/api/receipts/{id}/pdf` | One receipt, and its PDF |
@@ -354,6 +355,40 @@ This works without login only while the package is public. When a newer
 version is found, the admins get one notification per version. `UPDATE_CHECK=false`
 turns the check off.
 
+## Email notifications
+
+Every notification is also sent by email, with [Apprise](https://github.com/caronc/apprise)
+as the sender. `APPRISE_EMAIL_URL` is an Apprise email URL with the login of the
+mail server, for example
+`mailtos://user:password@smtp.example.org:587?from=fuel@example.org`; for each
+message the app adds the address to send to (`to=…`) and sends it on its own.
+Anything else Apprise's email URLs allow (`mode=`, `name=`, a provider like Gmail)
+works as well. Special characters in the password are written as `%XX`. The URL
+contains the password, so it is an environment variable only and never shown in
+the web UI. Without it, nothing is sent.
+
+**Who gets it.** The user the notification is for, if they have an email address.
+Otherwise, and for notifications that aren't for one user (a receipt without a
+fuel-up, an unreadable receipt email, an update), all active admins that have an
+address (the same address once). If nobody has an address, there is nobody to
+send to: the notification stays in the web UI only, and a line is logged.
+
+**How it is sent.** Creating a notification only writes its row in the
+`notifications` table, with `email_state` = `pending`. A background task checks
+for pending rows every 10 seconds and sends them, outside of the transaction that
+created them. So a slow or broken mail server never holds up a fuel-up, and a
+notification whose transaction was rolled back is never sent. A message the mail
+server doesn't take is tried again after 1, 5 and 15 minutes (each address that
+already got it is skipped), then given up (`failed`). Notifications that are
+older than this feature (or created while no email URL is set) are `skipped`, not
+sent later: switching email on never sends a flood of old messages.
+
+The email has the subject `Fuel Tracker: <title>` and the message as plain text.
+The settings page shows whether it is set up, whether the last email went out
+(with the mail server's error if not), and has a button that sends a test email to
+the signed-in admin. Apprise only reports the reason for a failure in its debug
+log, so the log is captured while a message is sent.
+
 ## Settings
 
 All settings can be set as **environment variables**. Some can also be changed
@@ -377,7 +412,7 @@ until it is reset.
 | Fuel types | `FUEL_TYPES` | `Diesel,Super,Super Plus,Super E10` | Yes |
 | Volume unit / currency | `VOLUME_UNIT`, `CURRENCY` | `L`, `EUR` | Yes |
 | Grace period | `DONE_RETENTION_DAYS` | `7` | Yes |
-| Notification targets | `APPRISE_URLS` | – | Yes (later) |
+| Email notifications (an Apprise `mailto://` or `mailtos://` URL, see [Email notifications](#email-notifications)) | `APPRISE_EMAIL_URL` | – | No |
 | Look for newer images / image name | `UPDATE_CHECK`, `UPDATE_CHECK_IMAGE` | `true`, `ghcr.io/pidi3000/fuel_tracker` | No |
 | Session lifetime | `SESSION_DAYS` | `30` | No |
 | Trusted proxy | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | No |

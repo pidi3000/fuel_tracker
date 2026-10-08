@@ -27,7 +27,7 @@ described in [shortcut](shortcut.md).
 | **LubeLogger** | Source of the vehicle list and last odometer reading; destination for the finished fuel record |
 | **Email inbox** | Dedicated mailbox that receives the Pace Drive receipts (PDF attachment). This is the primary source of payment data |
 | **Pace Drive API** | Possible future source of payment data. Postponed until API access is confirmed |
-| **Notification service** | Tells the user when a fuel-up fails or needs attention (in the web UI first; email or other [Apprise](https://github.com/caronc/apprise) targets later) |
+| **Mail server (SMTP)** | Sends the notification emails (through [Apprise](https://github.com/caronc/apprise)). Optional: without it, notifications are only shown in the web UI |
 | **Apple Shortcuts** | A client of the server's API, like the web UI. The server needs nothing Shortcut-specific |
 
 ## What it does
@@ -191,6 +191,30 @@ For a failed fuel-up, the user can also retry the receipt search or enter the
 payment data manually. Notifications are only sent when something fails or needs
 attention, never on success.
 
+### Notifications
+
+A notification appears in the web UI (the bell in the header), and, when email is
+set up, is also sent by email. The email goes to:
+
+- **the user it is about**, for example the one who created a fuel-up that
+  failed or needs attention, if that user has an email address (the admin sets it
+  under *Users*);
+- **the admins**, when the user has no email address, and for everything that
+  isn't about one user: a receipt that has no fuel-up, a receipt email that
+  couldn't be read or turned up again, and a newer version of the app. Every
+  admin with an email address gets it, once.
+
+If nobody who should get a notification has an email address, it is only shown in
+the web UI. The email has the subject *Fuel Tracker:* followed by the title of the
+notification, and the same text. If the mail server can't be reached, sending is
+tried again after 1, 5 and 15 minutes; then the email is given up (the
+notification stays in the web UI). Emails are only sent for notifications from
+now on: switching email on, or updating, never sends old ones.
+
+The admins see on the settings page whether email notifications are set up and
+working, and can send themselves a test email there. The mail server is set up
+with `APPRISE_EMAIL_URL` (see [Settings](#settings-overview)).
+
 ### Navigation and appearance
 
 The start page (the fuel-ups in progress) is the main page, and *New fuel-up* is
@@ -250,7 +274,7 @@ controlled in Fuel Tracker.
 - Fuel types (defaults: Diesel, Super, Super Plus, Super E10)
 - Units for fuel amount and currency (default: liters and EUR, matching
   LubeLogger)
-- Notification targets
+- Email notifications: the mail server (an Apprise email URL; an environment variable only, as it holds the password). The email address of each user is set under *Users*
 - Users, roles and vehicle access
 
 ### Update check
@@ -265,4 +289,4 @@ is not done: pull the new image and restart.
 - Pace Drive API as a payment source
 - Automatic unit conversion
 - Converting between GPS coordinates and postal addresses
-- Notifications by email or other Apprise targets
+- Notifications through other Apprise targets (ntfy, Pushover, Telegram, …), besides email

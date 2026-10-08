@@ -51,6 +51,7 @@ class ConnectionStatus(BaseModel):
 class StatusOut(BaseModel):
     lubelogger: ConnectionStatus
     mailbox: ConnectionStatus
+    email: ConnectionStatus
 
 
 def _mailbox_status(services: ServicesDep) -> ConnectionStatus:
@@ -72,9 +73,25 @@ def _mailbox_status(services: ServicesDep) -> ConnectionStatus:
 @router.get("/status")
 async def connection_status(_: AdminUser, services: ServicesDep) -> StatusOut:
     """Whether the connected systems work. Slower than /health, for the admin UI."""
+    email = await services.email.status()
     return StatusOut(
-        lubelogger=await _lubelogger_status(services), mailbox=_mailbox_status(services)
+        lubelogger=await _lubelogger_status(services),
+        mailbox=_mailbox_status(services),
+        email=ConnectionStatus(state=email.state, message=email.message),
     )
+
+
+@router.post("/status/email-test")
+async def send_test_email(admin: AdminUser, services: ServicesDep) -> ConnectionStatus:
+    """Send a test email to the signed-in admin."""
+    if not admin.email:
+        return ConnectionStatus(
+            state="error",
+            message="Your account has no email address. Add one under Users, then try again.",
+        )
+    if error := await services.email.send_test(admin.email):
+        return ConnectionStatus(state="error", message=error)
+    return ConnectionStatus(state="ok", message=f"A test email was sent to {admin.email}.")
 
 
 async def _lubelogger_status(services: ServicesDep) -> ConnectionStatus:

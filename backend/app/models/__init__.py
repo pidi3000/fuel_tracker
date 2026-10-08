@@ -2,6 +2,7 @@
 
 from app.models.fuel_up import (
     Attention,
+    EmailState,
     FuelUp,
     Notification,
     PaymentSource,
@@ -14,6 +15,7 @@ from app.models.user import ApiToken, Role, User, UserSession, UserVehicle
 __all__ = [
     "ApiToken",
     "Attention",
+    "EmailState",
     "FuelUp",
     "Notification",
     "PaymentSource",

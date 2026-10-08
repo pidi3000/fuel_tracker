@@ -5,15 +5,22 @@ from tests.conftest import AppUnderTest
 PASSWORD = "correct horse"
 
 
-async def sign_in_admin(api: AppUnderTest, username: str = "alice") -> None:
+async def sign_in_admin(
+    api: AppUnderTest, username: str = "alice", email: str | None = None
+) -> None:
     response = await api.client.post(
-        "/api/setup", json={"username": username, "password": PASSWORD}
+        "/api/setup", json={"username": username, "password": PASSWORD, "email": email}
     )
     assert response.status_code == 201, response.text
 
 
 async def create_user(
-    api: AppUnderTest, username: str, vehicle_ids: list[int], *, admin: bool = False
+    api: AppUnderTest,
+    username: str,
+    vehicle_ids: list[int],
+    *,
+    admin: bool = False,
+    email: str | None = None,
 ) -> int:
     response = await api.client.post(
         "/api/users",
@@ -22,6 +29,7 @@ async def create_user(
             "password": PASSWORD,
             "vehicle_ids": vehicle_ids,
             "role": "admin" if admin else "user",
+            "email": email,
         },
     )
     assert response.status_code == 201, response.text

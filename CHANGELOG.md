@@ -3,6 +3,21 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
+## Unreleased
+
+### New
+
+- Notifications are now also sent by email, so you hear about a failed fuel-up or a receipt
+  that needs a look without opening the app. The email goes to the user the notification is
+  about (for example the one who created the fuel-up), if their account has an email address;
+  otherwise to the admins. Notifications that aren't about one user (a receipt without a
+  fuel-up, a receipt email that couldn't be read, a new version of the app) go to the admins.
+  To turn it on, set `APPRISE_EMAIL_URL` in `.env` to your mail server's login as an
+  [Apprise](https://github.com/caronc/apprise/wiki/Notify_email) email URL (see
+  `.env.example`), and add an email address to your users under *Users*. Without
+  `APPRISE_EMAIL_URL` nothing is sent, as before. The settings page shows whether email works
+  and has a button that sends you a test email.
+
 ## 0.4.0 - 2026-10-07
 
 ### New

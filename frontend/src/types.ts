@@ -188,4 +188,5 @@ export interface UpdateInfo {
 export interface StatusResponse {
   lubelogger: ConnectionStatus
   mailbox: ConnectionStatus
+  email: ConnectionStatus
 }
