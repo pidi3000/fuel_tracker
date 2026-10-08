@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     # The image to look at (ghcr.io-style registry; the package must be readable without login)
     update_check_image: str = "ghcr.io/pidi3000/fuel_tracker"
 
+    # --- notifications by email ---
+    # An Apprise email URL with the login of the mail server, e.g.
+    # mailtos://user:password@smtp.example.org:587?from=fuel@example.org
+    # (special characters in the password are written as %XX). The address to send to is added
+    # for each message. Empty: no emails are sent.
+    apprise_email_url: str = ""
+    # The address the web UI is reached at from outside, e.g. https://fuel.example.org. The
+    # emails link to it. Empty: no link in the emails.
+    public_url: str = ""
+
     # --- LubeLogger ---
     lubelogger_url: str = ""
     lubelogger_api_key: str = ""

@@ -51,6 +51,7 @@ class ConnectionStatus(BaseModel):
 class StatusOut(BaseModel):
     lubelogger: ConnectionStatus
     mailbox: ConnectionStatus
+    email: ConnectionStatus
 
 
 def _mailbox_status(services: ServicesDep) -> ConnectionStatus:
@@ -72,8 +73,11 @@ def _mailbox_status(services: ServicesDep) -> ConnectionStatus:
 @router.get("/status")
 async def connection_status(_: AdminUser, services: ServicesDep) -> StatusOut:
     """Whether the connected systems work. Slower than /health, for the admin UI."""
+    email = await services.email.status()
     return StatusOut(
-        lubelogger=await _lubelogger_status(services), mailbox=_mailbox_status(services)
+        lubelogger=await _lubelogger_status(services),
+        mailbox=_mailbox_status(services),
+        email=ConnectionStatus(state=email.state, message=email.message),
     )
 
 

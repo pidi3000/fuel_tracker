@@ -35,19 +35,18 @@ def test_requires_login_and_admin(client: TestClient) -> None:
 
 def test_create_list_and_vehicle_access(client: TestClient) -> None:
     setup_admin(client)
-    bob = make_user(client, email="bob@example.com", vehicle_ids=[3, 1, 3])
+    bob = make_user(client, vehicle_ids=[3, 1, 3])
     assert bob["role"] == "user" and bob["vehicle_ids"] == [1, 3]
+    assert bob["email"] is None  # users set their own address
 
     assert [u["username"] for u in client.get("/api/users").json()] == ["alice", "bob"]
 
     updated = client.patch(f"/api/users/{bob['id']}", json={"vehicle_ids": [2, 3]}).json()
     assert updated["vehicle_ids"] == [2, 3]
-    assert updated["email"] == "bob@example.com"  # untouched fields stay
+    assert updated["role"] == "user"  # untouched fields stay
 
-    cleared = client.patch(
-        f"/api/users/{bob['id']}", json={"email": None, "vehicle_ids": []}
-    ).json()
-    assert cleared["email"] is None and cleared["vehicle_ids"] == []
+    cleared = client.patch(f"/api/users/{bob['id']}", json={"vehicle_ids": []}).json()
+    assert cleared["vehicle_ids"] == []
 
 
 def test_usernames_are_unique_ignoring_case(client: TestClient) -> None:

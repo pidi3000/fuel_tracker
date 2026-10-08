@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.services.email_notifications import EmailNotifier
 from app.services.events import EventBus
 from app.services.fuel_ups import Context
 from app.services.lubelogger import LubeLoggerClient
@@ -26,6 +27,7 @@ class Services:
     vehicles: VehicleDirectory
     processor: Processor
     receipts: ReceiptContext
+    email: EmailNotifier
     mail_watcher: MailWatcher | None = None
     updates: UpdateChecker | None = None
 

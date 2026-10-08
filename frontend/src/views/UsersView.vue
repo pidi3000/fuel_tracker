@@ -14,7 +14,6 @@ const editingId = ref<number | null>(null)
 
 const emptyForm = () => ({
   username: '',
-  email: '',
   password: '',
   role: 'user' as Role,
   is_active: true,
@@ -44,7 +43,6 @@ function startCreate() {
 function startEdit(user: User) {
   Object.assign(form, {
     username: user.username,
-    email: user.email ?? '',
     password: '',
     role: user.role,
     is_active: user.is_active,
@@ -68,7 +66,6 @@ async function save() {
     if (creating.value) {
       await postJson('/users', {
         username: form.username,
-        email: form.email || null,
         password: form.password,
         role: form.role,
         vehicle_ids: form.vehicle_ids,
@@ -76,7 +73,6 @@ async function save() {
       showToast(`User ${form.username} created.`)
     } else if (editingId.value !== null) {
       await patchJson(`/users/${editingId.value}`, {
-        email: form.email || null,
         role: form.role,
         is_active: form.is_active,
         vehicle_ids: form.vehicle_ids,
@@ -123,10 +119,6 @@ function vehicleSummary(user: User): string {
       <div v-if="creating" class="field">
         <label for="u-name">Username</label>
         <input id="u-name" v-model="form.username" required minlength="3" autocomplete="off" />
-      </div>
-      <div class="field">
-        <label for="u-email">Email (optional)</label>
-        <input id="u-email" v-model="form.email" type="email" autocomplete="off" />
       </div>
       <div class="field">
         <label for="u-password">{{ creating ? 'Password' : 'New password' }}</label>

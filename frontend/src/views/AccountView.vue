@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
-import { deleteJson, getJson, postJson } from '../api'
+import { deleteJson, getJson, postJson, putJson } from '../api'
 import { auth } from '../auth'
 import { formatDateTime } from '../format'
-import type { ApiToken, ApiTokenCreated } from '../types'
+import { showToast } from '../toast'
+import type { ApiToken, ApiTokenCreated, EmailSettings, EmailTestResult, User } from '../types'
 
 const tokens = ref<ApiToken[]>([])
 const tokenName = ref('')
@@ -21,7 +22,68 @@ async function loadTokens() {
   tokens.value = await getJson<ApiToken[]>('/tokens')
 }
 
-onMounted(loadTokens)
+// What the user gets by email: their address, and which kinds of notification
+const emailSettings = ref<EmailSettings | null>(null)
+const emailAddress = ref('')
+const wanted = ref<string[]>([])
+const emailError = ref('')
+const savingEmail = ref(false)
+const sendingTest = ref(false)
+
+function applyEmailSettings(settings: EmailSettings) {
+  emailSettings.value = settings
+  emailAddress.value = settings.email ?? ''
+  wanted.value = settings.kinds.filter((k) => k.enabled).map((k) => k.kind)
+}
+
+async function loadEmailSettings() {
+  try {
+    applyEmailSettings(await getJson<EmailSettings>('/notifications/email'))
+  } catch (e) {
+    emailError.value = (e as Error).message
+  }
+}
+
+async function saveEmail() {
+  emailError.value = ''
+  savingEmail.value = true
+  try {
+    applyEmailSettings(
+      await putJson<EmailSettings>('/notifications/email', {
+        email: emailAddress.value || null,
+        kinds: wanted.value,
+      }),
+    )
+    auth.user = await getJson<User>('/auth/me') // the address is shown above
+    showToast('Email settings saved.')
+  } catch (e) {
+    emailError.value = (e as Error).message
+  } finally {
+    savingEmail.value = false
+  }
+}
+
+async function sendTestEmail() {
+  sendingTest.value = true
+  try {
+    const result = await postJson<EmailTestResult>('/notifications/email/test')
+    showToast(result.message, result.state === 'ok' ? 'ok' : 'error', 8000)
+  } catch (e) {
+    showToast((e as Error).message, 'error', 8000)
+  } finally {
+    sendingTest.value = false
+  }
+}
+
+// The test goes to the saved address, not to what is typed but not saved yet
+const unsavedAddress = computed(
+  () => emailAddress.value.trim() !== (emailSettings.value?.email ?? ''),
+)
+
+onMounted(() => {
+  void loadTokens()
+  void loadEmailSettings()
+})
 
 async function createToken() {
   tokenError.value = ''
@@ -76,6 +138,41 @@ function formatDate(value: string | null): string {
         }}<template v-if="auth.user?.email"> · {{ auth.user.email }}</template>
       </p>
     </section>
+
+    <form class="card" @submit.prevent="saveEmail">
+      <h2>Email notifications</h2>
+      <p v-if="emailSettings && !emailSettings.available" class="muted">
+        This server can't send emails yet (an admin sets it up). What you choose here is saved for
+        when it can.
+      </p>
+      <p class="muted">
+        Notifications always show in the app. Give your email address to also get them by email.
+        Without one, emails about your fuel-ups go to the admins.
+      </p>
+      <div v-if="emailError" class="alert error" role="alert">{{ emailError }}</div>
+      <div class="field">
+        <label for="email">Your email address</label>
+        <input id="email" v-model="emailAddress" type="email" autocomplete="email" />
+      </div>
+      <div v-if="emailSettings" class="field">
+        <span class="label">Email me when</span>
+        <label v-for="kind in emailSettings.kinds" :key="kind.kind" class="check">
+          <input v-model="wanted" type="checkbox" :value="kind.kind" />
+          {{ kind.label }}
+          <span class="hint below">{{ kind.description }}</span>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="primary" type="submit" :disabled="savingEmail">Save</button>
+        <button
+          type="button"
+          :disabled="sendingTest || unsavedAddress || !emailAddress || !emailSettings?.available"
+          @click="sendTestEmail"
+        >
+          Send a test email
+        </button>
+      </div>
+    </form>
 
     <section class="card">
       <h2>API tokens</h2>

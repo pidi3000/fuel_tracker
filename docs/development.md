@@ -75,6 +75,12 @@ Create a vehicle first (`POST /api/vehicles/add`). To run LubeLogger from its
 source, build it with the .NET SDK (`dotnet publish -c Release`) and start it
 with `ASPNETCORE_URLS=http://127.0.0.1:8080 dotnet CarCareTracker.dll`.
 
+## Testing the notification emails
+
+`tests/test_apprise_smtp.py` sends real emails through Apprise to a small SMTP
+server that the test starts itself (`aiosmtpd`). Nothing to set up, it runs with
+the other tests.
+
 ## Testing against a real mail server
 
 Likewise, `tests/test_imap_integration.py` talks to a real IMAP server and is

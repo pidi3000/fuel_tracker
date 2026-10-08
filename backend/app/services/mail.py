@@ -29,7 +29,7 @@ from typing import Protocol
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.types import utcnow
-from app.models import Receipt
+from app.models import NotificationKind, Receipt
 from app.services import notifications
 from app.services import receipts as receipt_service
 
@@ -280,10 +280,12 @@ class ReceiptMailHandler:
                     await notifications.notify(
                         session,
                         self._ctx.events,
+                        kind=NotificationKind.RECEIPT_EMAIL_PROBLEM,
                         level="error",
                         title="A receipt email couldn't be read",
                         message=f"{subject}: {receipt.parse_error} Ignore it in the receipts list "
                         "or log the fuel-up by hand.",
+                        receipt_id=receipt.id,
                     )
             if not stored_ids:
                 # Every receipt in it was received in another email before
@@ -326,6 +328,7 @@ class ReceiptMailHandler:
         await notifications.notify(
             session,
             self._ctx.events,
+            kind=NotificationKind.RECEIPT_EMAIL_PROBLEM,
             level="warning",
             title="A receipt email was found again",
             message=(

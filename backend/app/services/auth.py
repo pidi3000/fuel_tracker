@@ -83,8 +83,6 @@ async def update_user(
     session: AsyncSession,
     user: User,
     *,
-    email: str | None = None,
-    set_email: bool = False,
     role: Role | None = None,
     is_active: bool | None = None,
     password: str | None = None,
@@ -95,8 +93,6 @@ async def update_user(
     )
     if losing_admin:
         await ensure_admin_remains(session, user)
-    if set_email:
-        user.email = email or None
     if role is not None:
         user.role = role
     if is_active is not None:

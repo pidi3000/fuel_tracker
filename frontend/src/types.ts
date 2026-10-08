@@ -129,10 +129,12 @@ export interface HistoryRecord {
 
 export interface AppNotification {
   id: number
+  kind: string
   level: 'info' | 'warning' | 'error'
   title: string
   message: string
   fuel_up_id: number | null
+  receipt_id: number | null
   is_read: boolean
   created_at: string
 }
@@ -151,6 +153,7 @@ export interface Setting {
 
 export interface EnvironmentInfo {
   version: string
+  public_url: string
   lubelogger_url: string
   lubelogger_api_key_set: boolean
   lubelogger_field_gps: string
@@ -171,7 +174,7 @@ export interface SettingsResponse {
 }
 
 export interface ConnectionStatus {
-  state: 'ok' | 'error' | 'not_configured' | 'connecting'
+  state: 'ok' | 'untested' | 'error' | 'not_configured' | 'connecting'
   message: string
 }
 
@@ -185,7 +188,27 @@ export interface UpdateInfo {
   error: string | null
 }
 
+export interface EmailKind {
+  kind: string
+  label: string
+  description: string
+  enabled: boolean
+}
+
+export interface EmailSettings {
+  /** False while the server can't send emails. */
+  available: boolean
+  email: string | null
+  kinds: EmailKind[]
+}
+
+export interface EmailTestResult {
+  state: 'ok' | 'error'
+  message: string
+}
+
 export interface StatusResponse {
   lubelogger: ConnectionStatus
   mailbox: ConnectionStatus
+  email: ConnectionStatus
 }

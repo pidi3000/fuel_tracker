@@ -22,6 +22,7 @@ from app.core.version import get_version
 from app.services.auth import AuthError
 from app.services.cleanup import clean_up
 from app.services.container import Services
+from app.services.email_notifications import EmailNotifier, EmailSender
 from app.services.events import EventBus
 from app.services.fuel_ups import Context
 from app.services.lubelogger import LubeLoggerClient
@@ -87,9 +88,12 @@ def start_mail_watcher(settings: Settings, services: Services) -> MailWatcher:
 
 
 def create_app(
-    settings: Settings | None = None, *, lubelogger: LubeLoggerClient | None = None
+    settings: Settings | None = None,
+    *,
+    lubelogger: LubeLoggerClient | None = None,
+    email_sender: EmailSender | None = None,
 ) -> FastAPI:
-    """Create the app. `lubelogger` replaces the client built from the settings (for tests)."""
+    """Create the app. `lubelogger` and `email_sender` replace the real ones (for tests)."""
     settings = settings or get_settings()
     logging.basicConfig(level=settings.log_level)
 
@@ -130,6 +134,12 @@ def create_app(
             receipts=ReceiptContext(
                 fuel=Context(runtime=runtime, events=events, lubelogger=client, vehicles=vehicles),
                 data_dir=settings.data_dir,
+            ),
+            email=EmailNotifier(
+                sessionmaker,
+                settings.apprise_email_url,
+                public_url=settings.public_url,
+                sender=email_sender,
             ),
         )
         if settings.update_check:
@@ -193,6 +203,7 @@ def create_app(
         tasks: list[asyncio.Task] = []
         if settings.background_workers:
             tasks.append(asyncio.create_task(processor.run(), name="processor"))
+            tasks.append(asyncio.create_task(services.email.run(), name="email"))
             if settings.imap_configured:
                 services.mail_watcher = start_mail_watcher(settings, services)
         logger.info("Fuel Tracker %s started", get_version())

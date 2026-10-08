@@ -6,6 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21",
     "alembic>=1.16",
+    "apprise>=2.0.1",
     "fastapi>=0.118",
     "httpx>=0.28.1",
     "imapclient>=4.1.0",
@@ -18,6 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "aiosmtpd>=1.4.6",
     "httpx2>=2.13.1",
     "pytest>=8.4",
     "pytest-asyncio>=1.2",

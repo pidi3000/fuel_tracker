@@ -12,7 +12,15 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.types import utcnow
-from app.models import Attention, FuelUp, PaymentSource, Receipt, ReceiptState, Status
+from app.models import (
+    Attention,
+    FuelUp,
+    NotificationKind,
+    PaymentSource,
+    Receipt,
+    ReceiptState,
+    Status,
+)
 from app.services import fuel_ups as fuel_up_service
 from app.services import notifications
 from app.services.events import EventBus
@@ -277,6 +285,7 @@ async def apply_receipt(
         await notifications.notify(
             session,
             ctx.events,
+            kind=NotificationKind.NEEDS_ATTENTION,
             level="warning",
             title=f"Receipt date for fuel-up #{fuel_up.id} came from the PDF",
             message=(
@@ -295,6 +304,7 @@ async def apply_receipt(
         await notifications.notify(
             session,
             ctx.events,
+            kind=NotificationKind.NEEDS_ATTENTION,
             level="warning",
             title=f"Fuel-up #{fuel_up.id} needs attention",
             message=fuel_up.attention_message,
@@ -310,6 +320,7 @@ async def apply_receipt(
         await notifications.notify(
             session,
             ctx.events,
+            kind=NotificationKind.REVIEW_READY,
             level="info",
             title=f"Receipt for fuel-up #{fuel_up.id} arrived",
             message="Check the fuel-up and approve it to send it to LubeLogger.",
@@ -360,6 +371,7 @@ async def expire_waiting_fuel_ups(
         await notifications.notify(
             session,
             ctx.events,
+            kind=NotificationKind.FUEL_UP_FAILED,
             level="error",
             title=f"No receipt for fuel-up #{fuel_up.id}",
             message=f"{fuel_up.vehicle_name}, {fuel_up.odometer}: {fuel_up.error_message}",
@@ -408,11 +420,13 @@ async def notify_lonely_receipts(
         await notifications.notify(
             session,
             ctx.events,
+            kind=NotificationKind.RECEIPT_WITHOUT_FUEL_UP,
             level="info",
             title="Receipt without a fuel-up",
             message=(
                 f"A receipt from {where} ({receipt.printed_date or 'unknown date'}) has no "
                 "fuel-up. Complete it with the vehicle and odometer reading, or ignore it."
             ),
+            receipt_id=receipt.id,
         )
     return len(receipts)

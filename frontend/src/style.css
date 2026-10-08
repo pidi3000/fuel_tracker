@@ -314,6 +314,12 @@ textarea:focus {
   font-weight: 400;
 }
 
+/* A longer explanation under a checkbox, lined up with its label */
+.check .hint.below {
+  flex-basis: 100%;
+  margin-left: 1.6rem;
+}
+
 button,
 .btn {
   font: inherit;

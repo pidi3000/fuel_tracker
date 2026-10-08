@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.main import create_app
 from app.services.container import Services
 from app.services.lubelogger import LubeLoggerClient
+from tests.fake_email import EMAIL_URL, PUBLIC_URL, FakeEmailSender
 from tests.fake_lubelogger import FakeLubeLogger
 
 
@@ -63,6 +64,26 @@ class AppUnderTest:
 async def api(settings: Settings, fake_lubelogger: FakeLubeLogger) -> AsyncIterator[AppUnderTest]:
     """The running app with an async HTTP client, for tests that also drive background work."""
     app = create_app(settings, lubelogger=lubelogger_client(fake_lubelogger))
+    async with app.router.lifespan_context(app):
+        transport = ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+            yield AppUnderTest(app, client, app.state.services, fake_lubelogger)
+
+
+@pytest.fixture
+def sender() -> FakeEmailSender:
+    return FakeEmailSender()
+
+
+@pytest.fixture
+async def mail_api(
+    settings: Settings, fake_lubelogger: FakeLubeLogger, sender: FakeEmailSender
+) -> AsyncIterator[AppUnderTest]:
+    """The running app with email set up, sending into `sender`."""
+    settings = settings.model_copy(
+        update={"apprise_email_url": EMAIL_URL, "public_url": PUBLIC_URL}
+    )
+    app = create_app(settings, lubelogger=lubelogger_client(fake_lubelogger), email_sender=sender)
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:

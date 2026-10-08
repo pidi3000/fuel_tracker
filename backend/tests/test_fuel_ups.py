@@ -182,6 +182,7 @@ async def test_lubelogger_unreachable_is_retried_then_fails(api: AppUnderTest) -
     assert "unreachable after 3 tries" in failed["error_message"]
     notifications = (await api.client.get("/api/notifications")).json()
     assert notifications[0]["level"] == "error" and notifications[0]["fuel_up_id"] == created["id"]
+    assert notifications[0]["kind"] == "fuel_up_failed"
 
     # Back up: retry works
     api.fake.down = False
