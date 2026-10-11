@@ -268,6 +268,8 @@ class EmailNotifier:
         )
         self._last_error = error
         self._has_sent = self._has_sent or error is None
+        if error:
+            logger.warning("The test email was not sent: %s", error)
         return error
 
     async def run(self) -> None:
