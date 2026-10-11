@@ -7,6 +7,8 @@ details are linked from each release on GitHub.
 
 ### Fixed
 
+- A test email that fails to send is now also written to the log (as a warning), not only
+  shown on the *Account* page, so the reason can be found in `docker compose logs`.
 - The Docker image now includes the time zone database. Without it, everything that uses the
   configured time zone failed with the error `No time zone found with key "Europe/Berlin"`:
   the fuel-up form (it loads the fuel types), adding and sending fuel-ups, and reading

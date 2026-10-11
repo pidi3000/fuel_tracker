@@ -1,5 +1,7 @@
 """What each user gets by email, their own address, and the link in the emails."""
 
+import logging
+
 import pytest
 
 from app.models import NotificationKind, User
@@ -128,6 +130,16 @@ async def test_a_test_email_goes_to_the_users_own_address(mail_api: AppUnderTest
     await sign_in_as(mail_api, "alice")
     status = (await mail_api.client.get("/api/status")).json()["email"]
     assert status["state"] == "error" and "Authentication failed" in status["message"]
+
+
+async def test_a_failed_test_email_is_logged(
+    mail_api: AppUnderTest, sender, caplog: pytest.LogCaptureFixture
+) -> None:
+    await sign_in_admin(mail_api, email="alice@example.org")
+    sender.error = "Connection timed out"
+    with caplog.at_level(logging.WARNING):
+        await mail_api.client.post("/api/notifications/email/test")
+    assert "The test email was not sent: Connection timed out" in caplog.text
 
 
 async def test_no_test_email_without_a_mail_server(api: AppUnderTest) -> None:
