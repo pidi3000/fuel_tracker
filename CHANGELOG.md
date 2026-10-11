@@ -3,6 +3,15 @@
 Notes for each release, written for the person running Fuel Tracker. Technical
 details are linked from each release on GitHub.
 
+## Unreleased
+
+### Fixed
+
+- The Docker image now includes the time zone database. Without it, everything that uses the
+  configured time zone failed with the error `No time zone found with key "Europe/Berlin"`:
+  the fuel-up form (it loads the fuel types), adding and sending fuel-ups, and reading
+  receipts.
+
 ## 0.5.0 - 2026-10-08
 
 ### New
