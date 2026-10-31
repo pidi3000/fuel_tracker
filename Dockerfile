@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Stage 2: the app ---
-FROM python:3.13-slim
+FROM python:3.15-slim
 RUN pip install --no-cache-dir uv==0.8.17
 
 ENV UV_COMPILE_BYTECODE=1 \
